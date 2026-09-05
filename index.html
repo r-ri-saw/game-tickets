@@ -611,7 +611,7 @@
       <div class="ticket-icon">🎟️</div>
       <div class="ticket-count-label">今のチケット</div>
       <div class="ticket-count" id="ticket-display">—</div>
-      <div class="ticket-unit">まい</div>
+      <div class="ticket-unit">枚</div>
       <div class="ticket-time" id="ticket-time-display"></div>
     </div>
 
@@ -621,7 +621,7 @@
     </div>
 
     <div class="request-section">
-      <div class="request-section-title">使いたい時間を選択</div>
+      <div class="request-section-title">使いたい時間を選んでね</div>
       <div class="request-grid">
         <button class="req-btn" onclick="requestTickets(1)" id="req-1">
           <div class="req-btn-time">15分</div>
@@ -697,7 +697,7 @@
         <div class="adjust-count-wrap">
           <div class="adjust-count-label">現在の枚数</div>
           <div class="adjust-count" id="parent-ticket-display">—</div>
-          <div class="adjust-count-unit">まい（<span id="parent-time-display">—</span>）</div>
+          <div class="adjust-count-unit">枚（<span id="parent-time-display">—</span>）</div>
         </div>
         <div class="adjust-btns">
           <button class="adj-btn plus" onclick="adjustTickets(1)">＋</button>
@@ -740,19 +740,19 @@
 // =============================================
 const SUPABASE_URL  = 'https://ximrinkiptgumwkgbkgn.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_9FWlAEh4BDwa2xLseUPQVg_yAeiAPJ3';
-const PARENT_PASSCODE = '1234'; // ← 好きな4桁に変更
+const PARENT_PASSCODE = '1124'; // ← 好きな4桁に変更
 
 // =============================================
 // STATE
 // =============================================
-let supabase, tickets = 0, pendingRequestId = null;
+let sbClient, tickets = 0, pendingRequestId = null;
 let channel; // Realtime channel
 
 // =============================================
 // INIT
 // =============================================
 document.addEventListener('DOMContentLoaded', async () => {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
   await loadState();
   subscribeRealtime();
   hideLoading();
@@ -761,7 +761,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadState() {
   try {
     // チケット残高
-    const { data: cfg } = await supabase
+    const { data: cfg } = await sbClient
       .from('game_config')
       .select('*')
       .eq('id', 1)
@@ -776,7 +776,7 @@ async function loadState() {
     }
 
     // 自分の保留申請を確認
-    const { data: reqs } = await supabase
+    const { data: reqs } = await sbClient
       .from('ticket_requests')
       .select('*')
       .eq('status', 'pending')
@@ -807,7 +807,7 @@ async function checkWeeklyReset(cfg) {
   // 最終付与日が今週月曜日より前なら追加
   if (!lastGrant || lastGrant < monday) {
     const newTickets = cfg.tickets + 40;
-    const { error } = await supabase
+    const { error } = await sbClient
       .from('game_config')
       .update({
         tickets: newTickets,
@@ -837,7 +837,7 @@ function getThisMonday(date) {
 // REALTIME
 // =============================================
 function subscribeRealtime() {
-  channel = supabase
+  channel = sbClient
     .channel('game-updates')
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'game_config'
@@ -860,7 +860,7 @@ function subscribeRealtime() {
           pendingRequestId = null;
           hidePendingBanner();
           disableReqButtons(false);
-          showToast('✅ しょうにんされました！たのしんでね🎮');
+          showToast('✅ 承認されました！楽しんでね🎮');
         } else if (payload.new.status === 'rejected') {
           pendingRequestId = null;
           hidePendingBanner();
@@ -873,7 +873,7 @@ function subscribeRealtime() {
 }
 
 async function refreshRequests() {
-  const { data: reqs } = await supabase
+  const { data: reqs } = await sbClient
     .from('ticket_requests')
     .select('*')
     .eq('status', 'pending')
@@ -924,7 +924,7 @@ async function requestTickets(amount) {
 
   disableReqButtons(true);
 
-  const { data, error } = await supabase
+  const { data, error } = await sbClient
     .from('ticket_requests')
     .insert({ amount, status: 'pending' })
     .select()
@@ -943,7 +943,7 @@ async function requestTickets(amount) {
 function showPendingBanner(amount) {
   const banner = document.getElementById('pending-banner');
   document.getElementById('pending-text').textContent =
-    `🎮 ${amount * 15}ふんぶん しんせいちゅう… おやのしょうにんまち`;
+    `🎮 ${amount * 15}ふんぶん 申請中… 親のしょうにんまち`;
   banner.classList.add('visible');
 }
 function hidePendingBanner() {
@@ -967,7 +967,7 @@ function showRejected() {
 // =============================================
 async function adjustTickets(delta) {
   const newVal = Math.max(0, tickets + delta);
-  const { error } = await supabase
+  const { error } = await sbClient
     .from('game_config')
     .update({ tickets: newVal })
     .eq('id', 1);
@@ -985,8 +985,8 @@ async function approveRequest(reqId, amount) {
 
   // トランザクション的に: チケット減らす & 申請承認
   const [r1, r2] = await Promise.all([
-    supabase.from('game_config').update({ tickets: newTickets }).eq('id', 1),
-    supabase.from('ticket_requests').update({ status: 'approved' }).eq('id', reqId)
+    sbClient.from('game_config').update({ tickets: newTickets }).eq('id', 1),
+    sbClient.from('ticket_requests').update({ status: 'approved' }).eq('id', reqId)
   ]);
 
   if (!r1.error && !r2.error) {
@@ -998,7 +998,7 @@ async function approveRequest(reqId, amount) {
 }
 
 async function rejectRequest(reqId) {
-  const { error } = await supabase
+  const { error } = await sbClient
     .from('ticket_requests')
     .update({ status: 'rejected' })
     .eq('id', reqId);
