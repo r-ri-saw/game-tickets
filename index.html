@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ゲームチケット">
+<meta name="theme-color" content="#1a1a3e">
+<title>ゲームチケット</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --kid-bg:       #0f0f2e;
+    --kid-surface:  #1a1a4e;
+    --kid-card:     #22225e;
+    --kid-accent:   #7c6fe0;
+    --kid-accent2:  #a78bfa;
+    --kid-gold:     #f5c842;
+    --kid-gold2:    #fde68a;
+    --kid-text:     #e8e8ff;
+    --kid-sub:      #9090c0;
+    --kid-danger:   #f87171;
+    --kid-success:  #34d399;
+    --parent-bg:    #0d1f1a;
+    --parent-surface:#122b22;
+    --parent-card:  #193320;
+    --parent-accent:#4ade80;
+    --parent-accent2:#86efac;
+    --parent-text:  #d4f0db;
+    --parent-sub:   #6a9e79;
+    --parent-warn:  #fbbf24;
+    --parent-danger:#f87171;
+    --radius-lg:    20px;
+    --radius-md:    14px;
+    --radius-sm:    10px;
+    --shadow:       0 8px 32px rgba(0,0,0,0.4);
+    --shadow-sm:    0 4px 12px rgba(0,0,0,0.3);
+  }
+  html, body {
+    min-height: 100dvh;
+    font-family: 'Nunito', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  body { background: var(--kid-bg); color: var(--kid-text); transition: background 0.4s; }
+  body.parent-mode { background: var(--parent-bg); color: var(--parent-text); }
+
+  /* ===== SCREENS ===== */
+  .screen {
+    display: none;
+    min-height: 100dvh;
+    padding: 0 0 env(safe-area-inset-bottom, 20px);
+    flex-direction: column;
+  }
+  .screen.active { display: flex; }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 52px 20px 16px;
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar-title {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+  }
+  .topbar-btn {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 50px;
+    color: inherit;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .topbar-btn:hover { background: rgba(255,255,255,0.18); }
+
+  /* ===== KID SCREEN ===== */
+  #kid-screen {
+    background: linear-gradient(160deg, #1a1a4e 0%, #0f0f2e 60%, #1e0f3e 100%);
+  }
+
+  .ticket-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 36px 24px 28px;
+    position: relative;
+  }
+  .ticket-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(124,111,224,0.25) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .ticket-icon {
+    font-size: 56px;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 20px rgba(245,200,66,0.5));
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .ticket-count-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--kid-sub);
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .ticket-count {
+    font-size: 96px;
+    font-weight: 900;
+    color: var(--kid-gold);
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(245,200,66,0.4);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .ticket-count.bump {
+    transform: scale(1.15);
+  }
+  .ticket-unit {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--kid-gold2);
+    margin-top: 4px;
+  }
+  .ticket-time {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--kid-sub);
+    margin-top: 8px;
+  }
+
+  /* Pending banner */
+  .pending-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: rgba(124,111,224,0.2);
+    border: 1.5px solid rgba(124,111,224,0.4);
+    border-radius: var(--radius-md);
+    margin: 0 20px 16px;
+    padding: 14px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--kid-accent2);
+  }
+  .pending-banner.visible { display: flex; }
+  .pending-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--kid-accent2);
+    animation: pulse 1.2s infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  /* Request buttons */
+  .request-section {
+    padding: 4px 20px 20px;
+    flex: 1;
+  }
+  .request-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--kid-sub);
+    margin-bottom: 12px;
+  }
+  .request-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .req-btn {
+    background: var(--kid-card);
+    border: 2px solid rgba(124,111,224,0.3);
+    border-radius: var(--radius-lg);
+    color: var(--kid-text);
+    font-family: inherit;
+    cursor: pointer;
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.18s;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .req-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(124,111,224,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.18s;
+  }
+  .req-btn:hover:not(:disabled)::before { opacity: 1; }
+  .req-btn:active:not(:disabled) { transform: scale(0.96); }
+  .req-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    filter: grayscale(0.5);
+  }
+  .req-btn-time {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--kid-gold);
+  }
+  .req-btn-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--kid-sub);
+  }
+  .req-btn-tickets {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--kid-accent2);
+    background: rgba(124,111,224,0.15);
+    border-radius: 50px;
+    padding: 3px 10px;
+  }
+
+  /* Rejected flash */
+  .rejected-flash {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(248,113,113,0.95);
+    border-radius: var(--radius-lg);
+    padding: 24px 32px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    z-index: 100;
+  }
+  .rejected-flash.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  /* ===== PASSCODE SCREEN ===== */
+  #passcode-screen {
+    background: linear-gradient(160deg, #122b22 0%, #0d1f1a 100%);
+    align-items: center;
+    justify-content: center;
+  }
+  .passcode-card {
+    background: var(--parent-card);
+    border-radius: var(--radius-lg);
+    padding: 40px 32px;
+    width: min(340px, 90vw);
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .passcode-icon { font-size: 48px; margin-bottom: 16px; }
+  .passcode-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--parent-text);
+    margin-bottom: 6px;
+  }
+  .passcode-sub {
+    font-size: 14px;
+    color: var(--parent-sub);
+    margin-bottom: 28px;
+  }
+  .passcode-dots {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .passcode-dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2.5px solid var(--parent-sub);
+    transition: all 0.2s;
+  }
+  .passcode-dot.filled {
+    background: var(--parent-accent);
+    border-color: var(--parent-accent);
+    box-shadow: 0 0 12px rgba(74,222,128,0.5);
+  }
+  .passcode-dot.error {
+    border-color: var(--parent-danger);
+    background: var(--parent-danger);
+  }
+  .passcode-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .key-btn {
+    background: rgba(255,255,255,0.07);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--parent-text);
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: 800;
+    padding: 18px 0;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .key-btn:hover { background: rgba(255,255,255,0.12); }
+  .key-btn:active { transform: scale(0.92); background: rgba(74,222,128,0.2); }
+  .key-btn.del { font-size: 18px; }
+  .key-btn.empty { visibility: hidden; }
+
+  /* ===== PARENT SCREEN ===== */
+  #parent-screen {
+    background: linear-gradient(160deg, #122b22 0%, #0d1f1a 60%, #1a2010 100%);
+  }
+  #parent-screen .topbar { background: rgba(0,0,0,0.25); }
+  .parent-topbar-title { color: var(--parent-accent); }
+
+  .section { padding: 20px 20px 0; }
+  .section-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--parent-sub);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .badge {
+    background: var(--parent-accent);
+    color: #0d1f1a;
+    font-size: 11px;
+    font-weight: 900;
+    border-radius: 50px;
+    padding: 2px 8px;
+  }
+
+  /* Ticket adjust card */
+  .ticket-adjust-card {
+    background: var(--parent-card);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 12px;
+  }
+  .adjust-count-wrap {
+    flex: 1;
+    text-align: center;
+  }
+  .adjust-count-label {
+    font-size: 12px;
+    color: var(--parent-sub);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .adjust-count {
+    font-size: 52px;
+    font-weight: 900;
+    color: var(--kid-gold);
+    line-height: 1;
+  }
+  .adjust-count-unit {
+    font-size: 13px;
+    color: var(--parent-sub);
+    font-weight: 700;
+  }
+  .adjust-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .adj-btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: none;
+    font-size: 22px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .adj-btn:active { transform: scale(0.88); }
+  .adj-btn.plus {
+    background: var(--parent-accent);
+    color: #0d1f1a;
+    box-shadow: 0 4px 14px rgba(74,222,128,0.35);
+  }
+  .adj-btn.minus {
+    background: rgba(248,113,113,0.15);
+    color: var(--parent-danger);
+    border: 2px solid rgba(248,113,113,0.4);
+  }
+
+  .adjust-quick-btns {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .quick-btn {
+    flex: 1;
+    min-width: 60px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-sm);
+    color: var(--parent-text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 10px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .quick-btn:hover { background: rgba(74,222,128,0.1); border-color: var(--parent-accent); color: var(--parent-accent); }
+  .quick-btn.negative:hover { background: rgba(248,113,113,0.1); border-color: var(--parent-danger); color: var(--parent-danger); }
+
+  /* Request cards */
+  .request-card {
+    background: var(--parent-card);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-left: 4px solid var(--parent-warn);
+  }
+  .request-card-info { flex: 1; }
+  .request-card-time {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--parent-text);
+  }
+  .request-card-tickets {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--parent-sub);
+    margin-top: 2px;
+  }
+  .request-card-meta {
+    font-size: 11px;
+    color: var(--parent-sub);
+    margin-top: 4px;
+  }
+  .request-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .action-btn {
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .action-btn:active { transform: scale(0.93); }
+  .action-btn.approve {
+    background: var(--parent-accent);
+    color: #0d1f1a;
+  }
+  .action-btn.reject {
+    background: rgba(248,113,113,0.15);
+    color: var(--parent-danger);
+    border: 1.5px solid rgba(248,113,113,0.4);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--parent-sub);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(30,30,60,0.95);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 14px 24px;
+    border-radius: 50px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    white-space: nowrap;
+    z-index: 200;
+    backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(255,255,255,0.1);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Weekly info */
+  .weekly-info {
+    background: rgba(74,222,128,0.08);
+    border: 1.5px solid rgba(74,222,128,0.2);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    margin: 0 20px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--parent-sub);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .spacer { height: 32px; }
+
+  /* Loading overlay */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: #0f0f2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: opacity 0.5s;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .loading-icon { font-size: 64px; margin-bottom: 20px; animation: float 2s ease-in-out infinite; }
+  .loading-text { font-size: 16px; font-weight: 700; color: var(--kid-sub); }
+
+  /* Scrollable area */
+  .scroll-area { overflow-y: auto; flex: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-icon">🎮</div>
+  <div class="loading-text">よみこみちゅう…</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Rejected flash -->
+<div class="rejected-flash" id="rejected-flash">
+  <div style="font-size:36px;margin-bottom:8px">😢</div>
+  申請が却下されました
+</div>
+
+<!-- ===== KID SCREEN ===== -->
+<div class="screen active" id="kid-screen">
+  <div class="topbar">
+    <span class="topbar-title">🎮 ゲームチケット</span>
+    <button class="topbar-btn" onclick="goToPasscode()">🔑 おや</button>
+  </div>
+
+  <div class="scroll-area">
+    <div class="ticket-hero">
+      <div class="ticket-icon">🎟️</div>
+      <div class="ticket-count-label">いまのチケット</div>
+      <div class="ticket-count" id="ticket-display">—</div>
+      <div class="ticket-unit">まい</div>
+      <div class="ticket-time" id="ticket-time-display"></div>
+    </div>
+
+    <div class="pending-banner" id="pending-banner">
+      <div class="pending-dot"></div>
+      <span id="pending-text">しんせいちゅう…おやのしょうにんまち</span>
+    </div>
+
+    <div class="request-section">
+      <div class="request-section-title">つかいたい時間をえらんでね</div>
+      <div class="request-grid">
+        <button class="req-btn" onclick="requestTickets(1)" id="req-1">
+          <div class="req-btn-time">15分</div>
+          <div class="req-btn-label">15分あそぶ</div>
+          <div class="req-btn-tickets">🎟️ 1まい</div>
+        </button>
+        <button class="req-btn" onclick="requestTickets(2)" id="req-2">
+          <div class="req-btn-time">30分</div>
+          <div class="req-btn-label">30分あそぶ</div>
+          <div class="req-btn-tickets">🎟️ 2まい</div>
+        </button>
+        <button class="req-btn" onclick="requestTickets(3)" id="req-3">
+          <div class="req-btn-time">45分</div>
+          <div class="req-btn-label">45分あそぶ</div>
+          <div class="req-btn-tickets">🎟️ 3まい</div>
+        </button>
+        <button class="req-btn" onclick="requestTickets(4)" id="req-4">
+          <div class="req-btn-time">60分</div>
+          <div class="req-btn-label">60分あそぶ</div>
+          <div class="req-btn-tickets">🎟️ 4まい</div>
+        </button>
+      </div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<!-- ===== PASSCODE SCREEN ===== -->
+<div class="screen" id="passcode-screen">
+  <div class="passcode-card">
+    <div class="passcode-icon">🔐</div>
+    <div class="passcode-title">おや用パスコード</div>
+    <div class="passcode-sub">4桁のパスコードを入力してください</div>
+    <div class="passcode-dots" id="passcode-dots">
+      <div class="passcode-dot" id="dot-0"></div>
+      <div class="passcode-dot" id="dot-1"></div>
+      <div class="passcode-dot" id="dot-2"></div>
+      <div class="passcode-dot" id="dot-3"></div>
+    </div>
+    <div class="passcode-keypad">
+      <button class="key-btn" onclick="keyPress('1')">1</button>
+      <button class="key-btn" onclick="keyPress('2')">2</button>
+      <button class="key-btn" onclick="keyPress('3')">3</button>
+      <button class="key-btn" onclick="keyPress('4')">4</button>
+      <button class="key-btn" onclick="keyPress('5')">5</button>
+      <button class="key-btn" onclick="keyPress('6')">6</button>
+      <button class="key-btn" onclick="keyPress('7')">7</button>
+      <button class="key-btn" onclick="keyPress('8')">8</button>
+      <button class="key-btn" onclick="keyPress('9')">9</button>
+      <button class="key-btn empty"></button>
+      <button class="key-btn" onclick="keyPress('0')">0</button>
+      <button class="key-btn del" onclick="keyDel()">⌫</button>
+    </div>
+    <button class="topbar-btn" style="margin-top:20px;width:100%;background:rgba(255,255,255,0.06);color:var(--parent-sub)" onclick="showScreen('kid-screen')">← もどる</button>
+  </div>
+</div>
+
+<!-- ===== PARENT SCREEN ===== -->
+<div class="screen" id="parent-screen">
+  <div class="topbar">
+    <span class="topbar-title parent-topbar-title">🛡️ おや管理</span>
+    <button class="topbar-btn" onclick="parentLogout()">ログアウト</button>
+  </div>
+
+  <div class="scroll-area">
+    <!-- Ticket adjust -->
+    <div class="section">
+      <div class="section-header">チケット残高</div>
+      <div class="ticket-adjust-card">
+        <div class="adjust-btns">
+          <button class="adj-btn minus" onclick="adjustTickets(-1)">－</button>
+        </div>
+        <div class="adjust-count-wrap">
+          <div class="adjust-count-label">現在の枚数</div>
+          <div class="adjust-count" id="parent-ticket-display">—</div>
+          <div class="adjust-count-unit">まい（<span id="parent-time-display">—</span>）</div>
+        </div>
+        <div class="adjust-btns">
+          <button class="adj-btn plus" onclick="adjustTickets(1)">＋</button>
+        </div>
+      </div>
+      <div class="adjust-quick-btns">
+        <button class="quick-btn" onclick="adjustTickets(4)">＋4枚<br><small>+1時間</small></button>
+        <button class="quick-btn" onclick="adjustTickets(8)">＋8枚<br><small>+2時間</small></button>
+        <button class="quick-btn" onclick="adjustTickets(40)">＋40枚<br><small>週分追加</small></button>
+        <button class="quick-btn negative" onclick="adjustTickets(-4)">－4枚<br><small>-1時間</small></button>
+      </div>
+    </div>
+
+    <!-- Weekly info -->
+    <div class="weekly-info" id="weekly-info">
+      📅 <span id="weekly-info-text">読み込み中…</span>
+    </div>
+
+    <!-- Requests -->
+    <div class="section">
+      <div class="section-header">
+        申請中リクエスト
+        <span class="badge" id="req-badge" style="display:none">0</span>
+      </div>
+      <div id="requests-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">✅</div>
+          申請はありません
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// ⚙️ CONFIGURATION — ここを書き換えてください
+// =============================================
+const SUPABASE_URL  = 'https://ximrinkiptgumwkgbkgn.supabase.co/rest/v1/';
+const SUPABASE_ANON = 'sb_publishable_9FWlAEh4BDwa2xLseUPQVg_yAeiAPJ3';
+const PARENT_PASSCODE = '1234'; // ← 好きな4桁に変更
+
+// =============================================
+// STATE
+// =============================================
+let supabase, tickets = 0, pendingRequestId = null;
+let channel; // Realtime channel
+
+// =============================================
+// INIT
+// =============================================
+document.addEventListener('DOMContentLoaded', async () => {
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  await loadState();
+  subscribeRealtime();
+  hideLoading();
+});
+
+async function loadState() {
+  try {
+    // チケット残高
+    const { data: cfg } = await supabase
+      .from('game_config')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    if (cfg) {
+      tickets = cfg.tickets;
+      checkWeeklyReset(cfg);
+      renderTickets();
+      renderParentTickets();
+      renderWeeklyInfo(cfg.last_weekly_grant);
+    }
+
+    // 自分の保留申請を確認
+    const { data: reqs } = await supabase
+      .from('ticket_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (reqs && reqs.length > 0) {
+      // 最新の pending を自分の申請として扱う
+      pendingRequestId = reqs[0].id;
+      showPendingBanner(reqs[0].amount);
+      disableReqButtons(true);
+    }
+
+    renderRequests(reqs || []);
+  } catch (e) {
+    console.error(e);
+    showToast('⚠️ データの読み込みに失敗しました');
+  }
+}
+
+// =============================================
+// WEEKLY RESET
+// =============================================
+async function checkWeeklyReset(cfg) {
+  const now = new Date();
+  const monday = getThisMonday(now);
+  const lastGrant = cfg.last_weekly_grant ? new Date(cfg.last_weekly_grant) : null;
+
+  // 最終付与日が今週月曜日より前なら追加
+  if (!lastGrant || lastGrant < monday) {
+    const newTickets = cfg.tickets + 40;
+    const { error } = await supabase
+      .from('game_config')
+      .update({
+        tickets: newTickets,
+        last_weekly_grant: monday.toISOString()
+      })
+      .eq('id', 1);
+
+    if (!error) {
+      tickets = newTickets;
+      renderTickets();
+      renderParentTickets();
+      showToast('🎉 週間チケット40枚が追加されました！');
+    }
+  }
+}
+
+function getThisMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun, 1=Mon...
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// =============================================
+// REALTIME
+// =============================================
+function subscribeRealtime() {
+  channel = supabase
+    .channel('game-updates')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'game_config'
+    }, (payload) => {
+      if (payload.new) {
+        tickets = payload.new.tickets;
+        renderTickets();
+        renderParentTickets();
+        renderWeeklyInfo(payload.new.last_weekly_grant);
+      }
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'ticket_requests'
+    }, async (payload) => {
+      await refreshRequests();
+
+      // 自分の申請が更新された場合
+      if (payload.new && payload.new.id === pendingRequestId) {
+        if (payload.new.status === 'approved') {
+          pendingRequestId = null;
+          hidePendingBanner();
+          disableReqButtons(false);
+          showToast('✅ しょうにんされました！たのしんでね🎮');
+        } else if (payload.new.status === 'rejected') {
+          pendingRequestId = null;
+          hidePendingBanner();
+          disableReqButtons(false);
+          showRejected();
+        }
+      }
+    })
+    .subscribe();
+}
+
+async function refreshRequests() {
+  const { data: reqs } = await supabase
+    .from('ticket_requests')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  renderRequests(reqs || []);
+}
+
+// =============================================
+// TICKET RENDER
+// =============================================
+function renderTickets() {
+  const el = document.getElementById('ticket-display');
+  el.textContent = tickets;
+  el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 400);
+
+  const mins = tickets * 15;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  document.getElementById('ticket-time-display').textContent =
+    h > 0 ? `${h}じかん ${m > 0 ? m + 'ふん' : ''}` : `${m}ふん ぶん`;
+}
+
+function renderParentTickets() {
+  document.getElementById('parent-ticket-display').textContent = tickets;
+  const mins = tickets * 15;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  document.getElementById('parent-time-display').textContent =
+    h > 0 ? `${h}時間${m > 0 ? m + '分' : ''}` : `${m}分`;
+}
+
+function renderWeeklyInfo(lastGrant) {
+  if (!lastGrant) return;
+  const d = new Date(lastGrant);
+  const nextMonday = new Date(d);
+  nextMonday.setDate(nextMonday.getDate() + 7);
+  const opts = { month: 'numeric', day: 'numeric' };
+  document.getElementById('weekly-info-text').textContent =
+    `今週の週間チケット（40枚）は付与済みです。次回付与: ${nextMonday.toLocaleDateString('ja-JP', opts)}（月）`;
+}
+
+// =============================================
+// KID ACTIONS
+// =============================================
+async function requestTickets(amount) {
+  if (pendingRequestId) return;
+  if (tickets < amount) { showToast('チケットがたりません！'); return; }
+
+  disableReqButtons(true);
+
+  const { data, error } = await supabase
+    .from('ticket_requests')
+    .insert({ amount, status: 'pending' })
+    .select()
+    .single();
+
+  if (error) {
+    showToast('⚠️ しんせいできませんでした');
+    disableReqButtons(false);
+    return;
+  }
+
+  pendingRequestId = data.id;
+  showPendingBanner(amount);
+}
+
+function showPendingBanner(amount) {
+  const banner = document.getElementById('pending-banner');
+  document.getElementById('pending-text').textContent =
+    `🎮 ${amount * 15}ふんぶん しんせいちゅう… おやのしょうにんまち`;
+  banner.classList.add('visible');
+}
+function hidePendingBanner() {
+  document.getElementById('pending-banner').classList.remove('visible');
+}
+
+function disableReqButtons(disabled) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById(`req-${i}`).disabled = disabled;
+  });
+}
+
+function showRejected() {
+  const el = document.getElementById('rejected-flash');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// =============================================
+// PARENT ACTIONS
+// =============================================
+async function adjustTickets(delta) {
+  const newVal = Math.max(0, tickets + delta);
+  const { error } = await supabase
+    .from('game_config')
+    .update({ tickets: newVal })
+    .eq('id', 1);
+
+  if (!error) {
+    tickets = newVal;
+    renderTickets();
+    renderParentTickets();
+    showToast(delta > 0 ? `＋${delta}枚 追加しました` : `${delta}枚 減らしました`);
+  }
+}
+
+async function approveRequest(reqId, amount) {
+  const newTickets = Math.max(0, tickets - amount);
+
+  // トランザクション的に: チケット減らす & 申請承認
+  const [r1, r2] = await Promise.all([
+    supabase.from('game_config').update({ tickets: newTickets }).eq('id', 1),
+    supabase.from('ticket_requests').update({ status: 'approved' }).eq('id', reqId)
+  ]);
+
+  if (!r1.error && !r2.error) {
+    tickets = newTickets;
+    renderTickets();
+    renderParentTickets();
+    showToast(`✅ 承認しました（-${amount}枚）`);
+  }
+}
+
+async function rejectRequest(reqId) {
+  const { error } = await supabase
+    .from('ticket_requests')
+    .update({ status: 'rejected' })
+    .eq('id', reqId);
+
+  if (!error) showToast('❌ 却下しました');
+}
+
+function renderRequests(reqs) {
+  const list = document.getElementById('requests-list');
+  const badge = document.getElementById('req-badge');
+
+  if (!reqs || reqs.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div>申請はありません</div>`;
+    badge.style.display = 'none';
+    return;
+  }
+
+  badge.textContent = reqs.length;
+  badge.style.display = 'inline';
+
+  list.innerHTML = reqs.map(r => {
+    const mins = r.amount * 15;
+    const d = new Date(r.created_at);
+    const timeStr = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    return `
+    <div class="request-card" id="rcard-${r.id}">
+      <div class="request-card-info">
+        <div class="request-card-time">${mins}分</div>
+        <div class="request-card-tickets">🎟️ ${r.amount}枚</div>
+        <div class="request-card-meta">${timeStr} に申請</div>
+      </div>
+      <div class="request-card-actions">
+        <button class="action-btn approve" onclick="approveRequest('${r.id}', ${r.amount})">承認</button>
+        <button class="action-btn reject" onclick="rejectRequest('${r.id}')">却下</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// =============================================
+// PASSCODE
+// =============================================
+let passcodeInput = '';
+
+function keyPress(d) {
+  if (passcodeInput.length >= 4) return;
+  passcodeInput += d;
+  updateDots();
+  if (passcodeInput.length === 4) {
+    setTimeout(checkPasscode, 150);
+  }
+}
+
+function keyDel() {
+  passcodeInput = passcodeInput.slice(0, -1);
+  updateDots();
+}
+
+function updateDots(error = false) {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    dot.classList.remove('filled', 'error');
+    if (error) dot.classList.add('error');
+    else if (i < passcodeInput.length) dot.classList.add('filled');
+  }
+}
+
+function checkPasscode() {
+  if (passcodeInput === PARENT_PASSCODE) {
+    passcodeInput = '';
+    updateDots();
+    showScreen('parent-screen');
+    document.body.classList.add('parent-mode');
+    refreshRequests();
+  } else {
+    updateDots(true);
+    setTimeout(() => {
+      passcodeInput = '';
+      updateDots();
+    }, 600);
+  }
+}
+
+function goToPasscode() {
+  passcodeInput = '';
+  updateDots();
+  showScreen('passcode-screen');
+}
+
+function parentLogout() {
+  showScreen('kid-screen');
+  document.body.classList.remove('parent-mode');
+}
+
+// =============================================
+// SCREEN NAV
+// =============================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// =============================================
+// UI HELPERS
+// =============================================
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function hideLoading() {
+  const el = document.getElementById('loading-overlay');
+  el.classList.add('hidden');
+  setTimeout(() => el.remove(), 500);
+}
+</script>
+</body>
+</html>
