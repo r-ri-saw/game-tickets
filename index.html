@@ -586,6 +586,76 @@
   /* Scrollable area */
   .scroll-area { overflow-y: auto; flex: 1; }
 
+  /* ===== HISTORY SCREEN ===== */
+  #history-screen {
+    background: linear-gradient(160deg, #16102e 0%, #0f0f2e 60%, #0f1a2e 100%);
+  }
+  #history-screen .topbar { background: rgba(0,0,0,0.25); }
+  .history-title { color: var(--kid-accent2); }
+
+  .history-list { padding: 16px 20px; }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.07);
+    position: relative;
+    overflow: hidden;
+  }
+  .history-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+  .history-item.type-use::before    { background: var(--kid-accent2); }
+  .history-item.type-adjust-plus::before  { background: var(--parent-accent); }
+  .history-item.type-adjust-minus::before { background: var(--parent-danger); }
+  .history-item.type-weekly::before { background: var(--kid-gold); }
+
+  .history-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    width: 36px;
+    text-align: center;
+  }
+  .history-info { flex: 1; min-width: 0; }
+  .history-desc {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--kid-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .history-date {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--kid-sub);
+    margin-top: 3px;
+  }
+  .history-amount {
+    font-size: 20px;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+  .history-amount.negative { color: var(--kid-accent2); }
+  .history-amount.positive { color: var(--parent-accent); }
+  .history-amount.weekly   { color: var(--kid-gold); }
+
+  .history-loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--kid-sub);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
@@ -612,13 +682,16 @@
 <div class="screen active" id="kid-screen">
   <div class="topbar">
     <span class="topbar-title">🎮 ゲームチケット</span>
-    <button class="topbar-btn" onclick="goToPasscode()">🔑 親</button>
+    <div style="display:flex;gap:8px">
+      <button class="topbar-btn" onclick="showHistory()">📋 履歴</button>
+      <button class="topbar-btn" onclick="goToPasscode()">🔑 保護者</button>
+    </div>
   </div>
 
   <div class="scroll-area">
     <div class="ticket-hero">
       <div class="ticket-icon">🎟️</div>
-      <div class="ticket-count-label">今のチケット</div>
+      <div class="ticket-count-label">残りチケット</div>
       <div class="ticket-count" id="ticket-display">—</div>
       <div class="ticket-unit">枚</div>
       <div class="ticket-time" id="ticket-time-display"></div>
@@ -626,33 +699,47 @@
 
     <div class="pending-banner" id="pending-banner">
       <div class="pending-dot"></div>
-      <span id="pending-text">申請中…親の承認待ち</span>
+      <span id="pending-text">申請中…保護者の承認待ち</span>
     </div>
 
     <div class="request-section">
-      <div class="request-section-title">使いたい時間を選んでね</div>
+      <div class="request-section-title">使いたい時間を選んで申請</div>
       <div class="request-grid">
         <button class="req-btn" onclick="requestTickets(1)" id="req-1">
           <div class="req-btn-time">15分</div>
-          <div class="req-btn-label">15分遊ぶ</div>
+          <div class="req-btn-label">15分プレイ</div>
           <div class="req-btn-tickets">🎟️ 1枚</div>
         </button>
         <button class="req-btn" onclick="requestTickets(2)" id="req-2">
           <div class="req-btn-time">30分</div>
-          <div class="req-btn-label">30分遊ぶ</div>
+          <div class="req-btn-label">30分プレイ</div>
           <div class="req-btn-tickets">🎟️ 2枚</div>
         </button>
         <button class="req-btn" onclick="requestTickets(3)" id="req-3">
           <div class="req-btn-time">45分</div>
-          <div class="req-btn-label">45分遊ぶ</div>
+          <div class="req-btn-label">45分プレイ</div>
           <div class="req-btn-tickets">🎟️ 3枚</div>
         </button>
         <button class="req-btn" onclick="requestTickets(4)" id="req-4">
           <div class="req-btn-time">60分</div>
-          <div class="req-btn-label">60分遊ぶ</div>
+          <div class="req-btn-label">60分プレイ</div>
           <div class="req-btn-tickets">🎟️ 4枚</div>
         </button>
       </div>
+    </div>
+    <div class="spacer"></div>
+  </div>
+</div>
+
+<!-- ===== HISTORY SCREEN ===== -->
+<div class="screen" id="history-screen">
+  <div class="topbar">
+    <span class="topbar-title history-title">📋 利用履歴</span>
+    <button class="topbar-btn" id="history-back-btn" onclick="historyGoBack()">← 戻る</button>
+  </div>
+  <div class="scroll-area">
+    <div class="history-list" id="history-list">
+      <div class="history-loading">読み込み中…</div>
     </div>
     <div class="spacer"></div>
   </div>
@@ -662,7 +749,7 @@
 <div class="screen" id="passcode-screen">
   <div class="passcode-card">
     <div class="passcode-icon">🔐</div>
-    <div class="passcode-title">親用パスコード</div>
+    <div class="passcode-title">保護者用パスコード</div>
     <div class="passcode-sub">4桁のパスコードを入力してください</div>
     <div class="passcode-dots" id="passcode-dots">
       <div class="passcode-dot" id="dot-0"></div>
@@ -684,15 +771,18 @@
       <button class="key-btn" onclick="keyPress('0')">0</button>
       <button class="key-btn del" onclick="keyDel()">⌫</button>
     </div>
-    <button class="topbar-btn" style="margin-top:20px;width:100%;background:rgba(255,255,255,0.06);color:var(--parent-sub)" onclick="showScreen('kid-screen')">← もどる</button>
+    <button class="topbar-btn" style="margin-top:20px;width:100%;background:rgba(255,255,255,0.06);color:var(--parent-sub)" onclick="showScreen('kid-screen')">← 戻る</button>
   </div>
 </div>
 
 <!-- ===== PARENT SCREEN ===== -->
 <div class="screen" id="parent-screen">
   <div class="topbar">
-    <span class="topbar-title parent-topbar-title">🛡️ 親管理</span>
-    <button class="topbar-btn" onclick="parentLogout()">ログアウト</button>
+    <span class="topbar-title parent-topbar-title">🛡️ 保護者管理</span>
+    <div style="display:flex;gap:8px">
+      <button class="topbar-btn" onclick="showHistory('parent')">📋 履歴</button>
+      <button class="topbar-btn" onclick="parentLogout()">ログアウト</button>
+    </div>
   </div>
 
   <div class="scroll-area">
@@ -826,19 +916,23 @@ async function checkWeeklyReset(cfg) {
   // 最終付与日が今週月曜日より前なら追加
   if (!lastGrant || lastGrant < monday) {
     const newTickets = cfg.tickets + 40;
-    const { error } = await sbClient
-      .from('game_config')
-      .update({
+    const [r1] = await Promise.all([
+      sbClient.from('game_config').update({
         tickets: newTickets,
         last_weekly_grant: monday.toISOString()
+      }).eq('id', 1),
+      sbClient.from('ticket_history').insert({
+        type: 'weekly',
+        amount: 40,
+        note: '週間チケット自動追加 +40枚'
       })
-      .eq('id', 1);
+    ]);
 
-    if (!error) {
+    if (!r1.error) {
       tickets = newTickets;
       renderTickets();
       renderParentTickets();
-      showToast('🎉 週間チケット40枚が追加されました！');
+      showToast('🎉 週間チケット40枚が追加されました！おつかれさま');
     }
   }
 }
@@ -913,7 +1007,7 @@ function renderTickets() {
   const mins = tickets * 15;
   const h = Math.floor(mins / 60), m = mins % 60;
   document.getElementById('ticket-time-display').textContent =
-    h > 0 ? `${h}時間 ${m > 0 ? m + '分' : ''}` : `${m}分 ぶん`;
+    h > 0 ? `${h}時間${m > 0 ? m + '分' : ''}` : `${m}分`;
 }
 
 function renderParentTickets() {
@@ -962,7 +1056,7 @@ async function requestTickets(amount) {
 function showPendingBanner(amount) {
   const banner = document.getElementById('pending-banner');
   document.getElementById('pending-text').textContent =
-    `🎮 ${amount * 15}分ぶん 申請中… 親の承認待ち`;
+    `🎮 ${amount * 15}分を申請中… 保護者の承認待ち`;
   banner.classList.add('visible');
 }
 function hidePendingBanner() {
@@ -986,12 +1080,19 @@ function showRejected() {
 // =============================================
 async function adjustTickets(delta) {
   const newVal = Math.max(0, tickets + delta);
-  const { error } = await sbClient
-    .from('game_config')
-    .update({ tickets: newVal })
-    .eq('id', 1);
+  const actualDelta = newVal - tickets; // 0未満クランプ後の実際の変化量
+  if (actualDelta === 0) return;
 
-  if (!error) {
+  const [r1] = await Promise.all([
+    sbClient.from('game_config').update({ tickets: newVal }).eq('id', 1),
+    sbClient.from('ticket_history').insert({
+      type: actualDelta > 0 ? 'adjust_plus' : 'adjust_minus',
+      amount: actualDelta,
+      note: actualDelta > 0 ? `手動追加 +${actualDelta}枚` : `手動減算 ${actualDelta}枚`
+    })
+  ]);
+
+  if (!r1.error) {
     tickets = newVal;
     renderTickets();
     renderParentTickets();
@@ -1002,10 +1103,15 @@ async function adjustTickets(delta) {
 async function approveRequest(reqId, amount) {
   const newTickets = Math.max(0, tickets - amount);
 
-  // トランザクション的に: チケット減らす & 申請承認
+  // チケット減らす & 申請承認 & 履歴記録
   const [r1, r2] = await Promise.all([
     sbClient.from('game_config').update({ tickets: newTickets }).eq('id', 1),
-    sbClient.from('ticket_requests').update({ status: 'approved' }).eq('id', reqId)
+    sbClient.from('ticket_requests').update({ status: 'approved' }).eq('id', reqId),
+    sbClient.from('ticket_history').insert({
+      type: 'use',
+      amount: -amount,
+      note: `ゲーム使用 ${amount * 15}分（${amount}枚）`
+    })
   ]);
 
   if (!r1.error && !r2.error) {
@@ -1055,6 +1161,65 @@ function renderRequests(reqs) {
       </div>
     </div>`;
   }).join('');
+}
+
+// =============================================
+// HISTORY
+// =============================================
+let historyFromScreen = 'kid-screen'; // 戻り先を記録
+
+async function showHistory(from = 'kid') {
+  historyFromScreen = from === 'parent' ? 'parent-screen' : 'kid-screen';
+  showScreen('history-screen');
+
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div class="history-loading">読み込み中…</div>';
+
+  const { data, error } = await sbClient
+    .from('ticket_history')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  if (error || !data || data.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div>${error ? '読み込みに失敗しました' : 'まだ履歴がありません'}</div>`;
+    return;
+  }
+
+  list.innerHTML = data.map(h => {
+    const d = new Date(h.created_at);
+    const dateStr = d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+    const timeStr = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+
+    let icon, typeClass, amountClass, amountStr;
+    if (h.type === 'use') {
+      icon = '🎮'; typeClass = 'type-use'; amountClass = 'negative';
+      amountStr = `${h.amount}枚`;
+    } else if (h.type === 'adjust_plus') {
+      icon = '⭐'; typeClass = 'type-adjust-plus'; amountClass = 'positive';
+      amountStr = `+${h.amount}枚`;
+    } else if (h.type === 'adjust_minus') {
+      icon = '📉'; typeClass = 'type-adjust-minus'; amountClass = 'negative';
+      amountStr = `${h.amount}枚`;
+    } else { // weekly
+      icon = '🗓️'; typeClass = 'type-weekly'; amountClass = 'weekly';
+      amountStr = `+${h.amount}枚`;
+    }
+
+    return `
+    <div class="history-item ${typeClass}">
+      <div class="history-icon">${icon}</div>
+      <div class="history-info">
+        <div class="history-desc">${h.note || '—'}</div>
+        <div class="history-date">${dateStr} ${timeStr}</div>
+      </div>
+      <div class="history-amount ${amountClass}">${amountStr}</div>
+    </div>`;
+  }).join('');
+}
+
+function historyGoBack() {
+  showScreen(historyFromScreen);
 }
 
 // =============================================
