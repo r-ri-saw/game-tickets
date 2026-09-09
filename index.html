@@ -869,12 +869,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadState() {
   try {
-    // チケット残高
-    const { data: cfg } = await sbClient
+    // ── ① 設定確認（URLキー未設定の早期検知）──────────────
+    if (SUPABASE_URL.includes('YOUR_PROJECT') || SUPABASE_ANON.includes('YOUR_ANON')) {
+      showToast('⚠️ SupabaseのURLとキーを設定してください');
+      hideLoading();
+      return;
+    }
+
+    // ── ② チケット残高を取得 ──────────────────────────────
+    let { data: cfg, error: cfgErr } = await sbClient
       .from('game_config')
       .select('*')
       .eq('id', 1)
       .single();
+
+    // レコードがなければ初期データを作成
+    if (cfgErr && cfgErr.code === 'PGRST116') {
+      const { data: inserted, error: insertErr } = await sbClient
+        .from('game_config')
+        .insert({ id: 1, tickets: 0, last_weekly_grant: null })
+        .select()
+        .single();
+      if (insertErr) throw new Error('初期データの作成に失敗: ' + insertErr.message);
+      cfg = inserted;
+    } else if (cfgErr) {
+      throw new Error('game_config の読み込みエラー: ' + cfgErr.message);
+    }
 
     if (cfg) {
       tickets = cfg.tickets;
@@ -884,24 +904,28 @@ async function loadState() {
       renderWeeklyInfo(cfg.last_weekly_grant);
     }
 
-    // 自分の保留申請を確認
-    const { data: reqs } = await sbClient
+    // ── ③ 保留中の申請を取得 ──────────────────────────────
+    const { data: reqs, error: reqsErr } = await sbClient
       .from('ticket_requests')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
+    if (reqsErr) throw new Error('ticket_requests の読み込みエラー: ' + reqsErr.message);
+
     if (reqs && reqs.length > 0) {
-      // 最新の pending を自分の申請として扱う
       pendingRequestId = reqs[0].id;
       showPendingBanner(reqs[0].amount);
       disableReqButtons(true);
     }
 
     renderRequests(reqs || []);
+
   } catch (e) {
-    console.error(e);
-    showToast('⚠️ データの読み込みに失敗しました');
+    console.error('[loadState]', e);
+    // エラー内容を画面に表示して原因を特定しやすくする
+    showToast('⚠️ ' + (e.message || 'データの読み込みに失敗しました'));
+    hideLoading();
   }
 }
 
