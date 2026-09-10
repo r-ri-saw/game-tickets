@@ -2,861 +2,1329 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>漢字かきとり</title>
-
-<!--
-  外部ライブラリ（CDN）
-  SheetJS: .xlsxをJavaScriptで読み込む
--->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ゲームチケット">
+<meta name="theme-color" content="#1a1a3e">
+<title>ゲームチケット</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-/* ═══════════════════════════════
-   CSS 変数 / リセット
-═══════════════════════════════ */
-:root {
-  --green:       #2d9b6a;
-  --green-d:     #1e7a52;
-  --green-light: #e8f7f0;
-  --green-mid:   #a8dfc5;
-  --orange:      #e8732a;
-  --orange-light:#fff3eb;
-  --yellow:      #f5c842;
-  --red:         #e84444;
-  --red-light:   #fef0f0;
-  --bg:          #f0f7f3;
-  --card:        #ffffff;
-  --text:        #1a2e1a;
-  --muted:       #7a8f7a;
-  --border:      #d6e8d6;
-  --shadow:      0 4px 24px rgba(45,155,106,0.12);
-  --radius:      20px;
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body {
-  font-family: 'Hiragino Maru Gothic ProN','Hiragino Maru Gothic Pro','BIZ UDGothic','Meiryo',sans-serif;
-  background: var(--bg); color: var(--text);
-  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
-  padding: 14px 12px 56px;
-}
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html {
+    touch-action: manipulation;   /* ダブルタップズームを無効化 */
+  }
+  button, a, [role="button"] {
+    touch-action: manipulation;   /* ボタン類も個別に無効化 */
+    -webkit-tap-highlight-color: transparent;  /* タップ時の青枠を除去 */
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  :root {
+    --kid-bg:       #0f0f2e;
+    --kid-surface:  #1a1a4e;
+    --kid-card:     #22225e;
+    --kid-accent:   #7c6fe0;
+    --kid-accent2:  #a78bfa;
+    --kid-gold:     #f5c842;
+    --kid-gold2:    #fde68a;
+    --kid-text:     #e8e8ff;
+    --kid-sub:      #9090c0;
+    --kid-danger:   #f87171;
+    --kid-success:  #34d399;
+    --parent-bg:    #0d1f1a;
+    --parent-surface:#122b22;
+    --parent-card:  #193320;
+    --parent-accent:#4ade80;
+    --parent-accent2:#86efac;
+    --parent-text:  #d4f0db;
+    --parent-sub:   #6a9e79;
+    --parent-warn:  #fbbf24;
+    --parent-danger:#f87171;
+    --radius-lg:    20px;
+    --radius-md:    14px;
+    --radius-sm:    10px;
+    --shadow:       0 8px 32px rgba(0,0,0,0.4);
+    --shadow-sm:    0 4px 12px rgba(0,0,0,0.3);
+  }
+  html, body {
+    min-height: 100dvh;
+    font-family: 'Nunito', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  body { background: var(--kid-bg); color: var(--kid-text); transition: background 0.4s; }
+  body.parent-mode { background: var(--parent-bg); color: var(--parent-text); }
 
-/* ═══════════════════════════════
-   ユーティリティ
-═══════════════════════════════ */
-.hidden { display: none !important; }
+  /* ===== SCREENS ===== */
+  .screen {
+    display: none;
+    min-height: 100dvh;
+    padding: 0 0 env(safe-area-inset-bottom, 20px);
+    flex-direction: column;
+  }
+  .screen.active { display: flex; }
 
-.screen {
-  width: 100%; max-width: 480px;
-  display: flex; flex-direction: column; align-items: center; gap: 14px;
-}
+  /* ===== TOP BAR ===== */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 52px 20px 16px;
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar-title {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+  }
+  .topbar-btn {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 50px;
+    color: inherit;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .topbar-btn:hover { background: rgba(255,255,255,0.18); }
 
-/* ═══════════════════════════════
-   共通ヘッダー
-═══════════════════════════════ */
-.app-header {
-  width: 100%; max-width: 480px;
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 4px;
-}
-.logo { font-size: 1.2rem; font-weight: 900; color: var(--green); }
-.logo span { color: var(--orange); }
-.hdr-right { display: flex; gap: 8px; align-items: center; }
+  /* ===== KID SCREEN ===== */
+  #kid-screen {
+    background: linear-gradient(160deg, #1a1a4e 0%, #0f0f2e 60%, #1e0f3e 100%);
+  }
 
-/* ═══════════════════════════════
-   カード
-═══════════════════════════════ */
-.card {
-  width: 100%; background: var(--card);
-  border-radius: var(--radius); box-shadow: var(--shadow);
-  border: 1.5px solid var(--border); padding: 22px 20px 20px;
-}
+  .ticket-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 36px 24px 28px;
+    position: relative;
+  }
+  .ticket-hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(124,111,224,0.25) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .ticket-icon {
+    font-size: 56px;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 20px rgba(245,200,66,0.5));
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .ticket-count-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--kid-sub);
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .ticket-count {
+    font-size: 96px;
+    font-weight: 900;
+    color: var(--kid-gold);
+    line-height: 1;
+    text-shadow: 0 0 40px rgba(245,200,66,0.4);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .ticket-count.bump {
+    transform: scale(1.15);
+  }
+  .ticket-unit {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--kid-gold2);
+    margin-top: 4px;
+  }
+  .ticket-time {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--kid-sub);
+    margin-top: 8px;
+  }
 
-/* ═══════════════════════════════
-   ボタン（共通）
-═══════════════════════════════ */
-.btn {
-  width: 100%; border: none; border-radius: 16px; padding: 15px;
-  font-family: inherit; font-size: 1rem; font-weight: 700;
-  cursor: pointer; transition: transform .12s, opacity .15s;
-  letter-spacing: .02em; display: flex; align-items: center; justify-content: center; gap: 6px;
-}
-.btn:active { transform: scale(.97); }
-.btn-primary  { background: linear-gradient(135deg, var(--green), var(--green-d)); color: #fff; box-shadow: 0 4px 14px rgba(45,155,106,.28); }
-.btn-danger   { background: var(--red-light); color: var(--red); border: 2px solid #f5b8b8; }
-.btn-ghost    { background: var(--card); border: 2px solid var(--border); color: var(--muted); }
-.btn-icon     { border: 1.5px solid var(--border); border-radius: 12px; padding: 6px 13px; background: var(--card); font-family: inherit; font-size: .78rem; font-weight: 700; color: var(--muted); cursor: pointer; }
-.btn:disabled { opacity: .4; pointer-events: none; }
+  /* Pending banner */
+  .pending-banner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    background: rgba(124,111,224,0.2);
+    border: 1.5px solid rgba(124,111,224,0.4);
+    border-radius: var(--radius-md);
+    margin: 0 20px 16px;
+    padding: 14px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--kid-accent2);
+  }
+  .pending-banner.visible { display: flex; }
+  .pending-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--kid-accent2);
+    animation: pulse 1.2s infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
 
-/* ═══════════════════════════════
-   ローディング画面 (#screen-loading)
-═══════════════════════════════ */
-#screen-loading {
-  min-height: 60vh; justify-content: center; align-items: center; gap: 16px;
-}
-.spinner {
-  width: 48px; height: 48px; border: 5px solid var(--border);
-  border-top-color: var(--green); border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-msg { font-size: .9rem; color: var(--muted); font-weight: 600; }
+  /* Request buttons */
+  .request-section {
+    padding: 4px 20px 20px;
+    flex: 1;
+  }
+  .request-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--kid-sub);
+    margin-bottom: 12px;
+  }
+  .request-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .req-btn {
+    background: var(--kid-card);
+    border: 2px solid rgba(124,111,224,0.3);
+    border-radius: var(--radius-lg);
+    color: var(--kid-text);
+    font-family: inherit;
+    cursor: pointer;
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.18s;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .req-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(124,111,224,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.18s;
+  }
+  .req-btn:hover:not(:disabled)::before { opacity: 1; }
+  .req-btn:active:not(:disabled) { transform: scale(0.96); }
+  .req-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    filter: grayscale(0.5);
+  }
+  .req-btn-time {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--kid-gold);
+  }
+  .req-btn-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--kid-sub);
+  }
+  .req-btn-tickets {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--kid-accent2);
+    background: rgba(124,111,224,0.15);
+    border-radius: 50px;
+    padding: 3px 10px;
+  }
 
-/* エラー画面 */
-#screen-error .error-box {
-  background: var(--red-light); border: 2px solid #f5b8b8;
-  border-radius: 16px; padding: 20px; text-align: center;
-}
-#screen-error .error-box h2 { color: var(--red); font-size: 1rem; margin-bottom: 8px; }
-#screen-error .error-box p  { font-size: .85rem; color: var(--muted); line-height: 1.6; }
+  /* Rejected flash */
+  .rejected-flash {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(248,113,113,0.95);
+    border-radius: var(--radius-lg);
+    padding: 24px 32px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    z-index: 100;
+  }
+  .rejected-flash.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 
-/* ═══════════════════════════════
-   ホーム画面 (#screen-home)
-═══════════════════════════════ */
-.home-title   { font-size: 1.4rem; font-weight: 900; color: var(--green); text-align: center; }
-.home-sub     { font-size: .8rem; color: var(--muted); text-align: center; }
+  /* ===== PASSCODE SCREEN ===== */
+  #passcode-screen {
+    background: linear-gradient(160deg, #122b22 0%, #0d1f1a 100%);
+    align-items: center;
+    justify-content: center;
+  }
+  .passcode-card {
+    background: var(--parent-card);
+    border-radius: var(--radius-lg);
+    padding: 40px 32px;
+    width: min(340px, 90vw);
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .passcode-icon { font-size: 48px; margin-bottom: 16px; }
+  .passcode-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--parent-text);
+    margin-bottom: 6px;
+  }
+  .passcode-sub {
+    font-size: 14px;
+    color: var(--parent-sub);
+    margin-bottom: 28px;
+  }
+  .passcode-dots {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .passcode-dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2.5px solid var(--parent-sub);
+    transition: all 0.2s;
+  }
+  .passcode-dot.filled {
+    background: var(--parent-accent);
+    border-color: var(--parent-accent);
+    box-shadow: 0 0 12px rgba(74,222,128,0.5);
+  }
+  .passcode-dot.error {
+    border-color: var(--parent-danger);
+    background: var(--parent-danger);
+  }
+  .passcode-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .key-btn {
+    background: rgba(255,255,255,0.07);
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--parent-text);
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: 800;
+    padding: 18px 0;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .key-btn:hover { background: rgba(255,255,255,0.12); }
+  .key-btn:active { transform: scale(0.92); background: rgba(74,222,128,0.2); }
+  .key-btn.del { font-size: 18px; }
+  .key-btn.empty { visibility: hidden; }
 
-/* 教科タブ */
-.subject-tabs { display: flex; gap: 0; width: 100%; border-radius: 14px; overflow: hidden; border: 1.5px solid var(--border); }
-.subject-tab  {
-  flex: 1; padding: 11px 4px; font-family: inherit; font-size: .85rem;
-  font-weight: 700; background: var(--card); border: none; cursor: pointer;
-  color: var(--muted); transition: background .15s, color .15s;
-}
-.subject-tab.active { background: var(--green); color: #fff; }
+  /* ===== PARENT SCREEN ===== */
+  #parent-screen {
+    background: linear-gradient(160deg, #122b22 0%, #0d1f1a 60%, #1a2010 100%);
+  }
+  #parent-screen .topbar { background: rgba(0,0,0,0.25); }
+  .parent-topbar-title { color: var(--parent-accent); }
 
-/* 単元選択 */
-.unit-section-title { font-size: .72rem; font-weight: 700; color: var(--muted); letter-spacing: .06em; margin-bottom: 8px; }
-.unit-list { display: flex; flex-direction: column; gap: 8px; }
-.unit-btn {
-  width: 100%; display: flex; align-items: center; justify-content: space-between;
-  padding: 13px 16px; border-radius: 14px; border: 2px solid var(--border);
-  background: var(--card); cursor: pointer; font-family: inherit;
-  font-size: .95rem; font-weight: 700; color: var(--text);
-  transition: border-color .15s, background .15s;
-}
-.unit-btn.selected  { border-color: var(--green); background: var(--green-light); color: var(--green); }
-.unit-btn .u-count  { font-size: .72rem; font-weight: 600; color: var(--muted); }
-.unit-btn.selected .u-count { color: var(--green); }
-.unit-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: .8rem; flex-shrink: 0; }
-.unit-btn.selected .unit-check { background: var(--green); border-color: var(--green); color: #fff; }
+  .section { padding: 20px 20px 0; }
+  .section-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--parent-sub);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .badge {
+    background: var(--parent-accent);
+    color: #0d1f1a;
+    font-size: 11px;
+    font-weight: 900;
+    border-radius: 50px;
+    padding: 2px 8px;
+  }
 
-/* 統計ミニバー */
-.stats-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.stats-mini-item { background: var(--green-light); border-radius: 12px; padding: 10px 4px; text-align: center; }
-.stats-mini-item .sn { font-size: 1.4rem; font-weight: 900; color: var(--green); display: block; }
-.stats-mini-item .sl { font-size: .68rem; color: var(--muted); font-weight: 600; }
+  /* Ticket adjust card */
+  .ticket-adjust-card {
+    background: var(--parent-card);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 12px;
+  }
+  .adjust-count-wrap {
+    flex: 1;
+    text-align: center;
+  }
+  .adjust-count-label {
+    font-size: 12px;
+    color: var(--parent-sub);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .adjust-count {
+    font-size: 52px;
+    font-weight: 900;
+    color: var(--kid-gold);
+    line-height: 1;
+  }
+  .adjust-count-unit {
+    font-size: 13px;
+    color: var(--parent-sub);
+    font-weight: 700;
+  }
+  .adjust-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .adj-btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: none;
+    font-size: 22px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .adj-btn:active { transform: scale(0.88); }
+  .adj-btn.plus {
+    background: var(--parent-accent);
+    color: #0d1f1a;
+    box-shadow: 0 4px 14px rgba(74,222,128,0.35);
+  }
+  .adj-btn.minus {
+    background: rgba(248,113,113,0.15);
+    color: var(--parent-danger);
+    border: 2px solid rgba(248,113,113,0.4);
+  }
 
-/* 更新ボタン */
-.update-row { display: flex; gap: 8px; width: 100%; }
-.update-row .btn { flex: 1; }
+  .adjust-quick-btns {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .quick-btn {
+    flex: 1;
+    min-width: 60px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-sm);
+    color: var(--parent-text);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 10px 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .quick-btn:hover { background: rgba(74,222,128,0.1); border-color: var(--parent-accent); color: var(--parent-accent); }
+  .quick-btn.negative:hover { background: rgba(248,113,113,0.1); border-color: var(--parent-danger); color: var(--parent-danger); }
 
-/* ═══════════════════════════════
-   学習画面 (#screen-study)
-═══════════════════════════════ */
-.progress-wrap { width: 100%; max-width: 480px; }
-.progress-label { display: flex; justify-content: space-between; font-size: .74rem; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
-.progress-track { width: 100%; height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
-.progress-fill  { height: 100%; background: linear-gradient(90deg, var(--green), #52c98c); border-radius: 99px; transition: width .5s ease; }
+  /* Request cards */
+  .request-card {
+    background: var(--parent-card);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-left: 4px solid var(--parent-warn);
+  }
+  .request-card-info { flex: 1; }
+  .request-card-time {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--parent-text);
+  }
+  .request-card-tickets {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--parent-sub);
+    margin-top: 2px;
+  }
+  .request-card-meta {
+    font-size: 11px;
+    color: var(--parent-sub);
+    margin-top: 4px;
+  }
+  .request-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .action-btn {
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .action-btn:active { transform: scale(0.93); }
+  .action-btn.approve {
+    background: var(--parent-accent);
+    color: #0d1f1a;
+  }
+  .action-btn.reject {
+    background: rgba(248,113,113,0.15);
+    color: var(--parent-danger);
+    border: 1.5px solid rgba(248,113,113,0.4);
+  }
 
-.drill-badge { display: inline-block; background: var(--green-light); color: var(--green); border-radius: 8px; padding: 2px 10px; font-size: .72rem; font-weight: 700; margin-bottom: 14px; }
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--parent-sub);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
 
-.q-label { font-size: .74rem; color: var(--muted); font-weight: 700; letter-spacing: .06em; margin-bottom: 6px; }
-.q-main  { font-size: 2rem; font-weight: 900; color: var(--green); letter-spacing: .1em; margin-bottom: 10px; line-height: 1.3; }
-.q-ctx   { font-size: .9rem; color: var(--muted); line-height: 1.7; background: var(--bg); border-radius: 10px; padding: 8px 12px; margin-bottom: 18px; }
-.q-ctx .blank { display: inline-block; border-bottom: 2.5px solid var(--green); background: var(--green-light); border-radius: 4px; padding: 0 4px; color: transparent; user-select: none; }
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 20px) + 20px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(30,30,60,0.95);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 14px 24px;
+    border-radius: 50px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    white-space: nowrap;
+    z-index: 200;
+    backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(255,255,255,0.1);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 
-/* {{}} で囲まれたひらがな部分 → 下線 */
-.q-underline {
-  border-bottom: 2.5px solid var(--green);
-  padding-bottom: 1px;
-  font-weight: 900;
-  color: var(--green);
-}
+  /* Weekly info */
+  .weekly-info {
+    background: rgba(74,222,128,0.08);
+    border: 1.5px solid rgba(74,222,128,0.2);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    margin: 0 20px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--parent-sub);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-/* ヒント表示エリア */
-.hint-row { display: flex; gap: 6px; margin-bottom: 14px; }
-.hint-tag { font-size: .72rem; background: var(--orange-light); color: var(--orange); border-radius: 8px; padding: 3px 10px; font-weight: 700; }
-.memo-tag { font-size: .72rem; background: var(--green-light); color: var(--green); border-radius: 8px; padding: 3px 10px; font-weight: 700; }
+  .spacer { height: 32px; }
 
-.write-box { width: 100%; min-height: 86px; border: 2.5px dashed var(--green-mid); border-radius: 16px; background: #f8fcfa; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-.write-placeholder { font-size: .88rem; color: var(--green-mid); font-weight: 600; text-align: center; }
+  /* Loading overlay */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: #0f0f2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: opacity 0.5s;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .loading-icon { font-size: 64px; margin-bottom: 20px; animation: float 2s ease-in-out infinite; }
+  .loading-text { font-size: 16px; font-weight: 700; color: var(--kid-sub); }
 
-.answer-reveal { display: none; background: var(--green-light); border: 2px solid var(--green); border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; text-align: center; }
-.answer-reveal.show { display: block; }
-.answer-kanji { font-size: 2rem; font-weight: 900; color: var(--text); letter-spacing: .08em; display: block; margin-bottom: 4px; }
-.answer-sub   { font-size: .78rem; color: var(--muted); font-weight: 600; }
+  /* Scrollable area */
+  .scroll-area { overflow-y: auto; flex: 1; }
 
-/* ストリーク星 */
-.streak-row { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
-.star { font-size: 1.25rem; filter: grayscale(1) opacity(.25); transition: filter .3s, transform .3s; }
-.star.lit { filter: none; transform: scale(1.15); }
-.master-badge { display: none; background: var(--yellow); color: #7a5a00; border-radius: 10px; padding: 3px 14px; font-size: .78rem; font-weight: 900; margin-top: 6px; text-align: center; }
-.master-badge.show { display: block; }
+  /* ===== HISTORY SCREEN ===== */
+  #history-screen {
+    background: linear-gradient(160deg, #16102e 0%, #0f0f2e 60%, #0f1a2e 100%);
+  }
+  #history-screen .topbar { background: rgba(0,0,0,0.25); }
+  .history-title { color: var(--kid-accent2); }
 
-/* フェーズ別ボタン表示 */
-.btn-row { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 10px; }
-.btn-show  { }
-.btn-ok    { display: none; }
-.btn-wrong { display: none; }
-.btn-next  { display: none; }
-.btn-back  { }
+  .history-list { padding: 16px 20px; }
 
-.phase-write .btn-show  { display: flex; }
-.phase-write .btn-ok    { display: none; }
-.phase-write .btn-wrong { display: none; }
-.phase-write .btn-next  { display: none; }
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    margin-bottom: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.07);
+    position: relative;
+    overflow: hidden;
+  }
+  .history-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+  .history-item.type-use::before    { background: var(--kid-accent2); }
+  .history-item.type-adjust-plus::before  { background: var(--parent-accent); }
+  .history-item.type-adjust-minus::before { background: var(--parent-danger); }
+  .history-item.type-weekly::before { background: var(--kid-gold); }
 
-.phase-judge .btn-show  { display: none; }
-.phase-judge .btn-ok    { display: flex; }
-.phase-judge .btn-wrong { display: flex; }
-.phase-judge .btn-next  { display: none; }
+  .history-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    width: 36px;
+    text-align: center;
+  }
+  .history-info { flex: 1; min-width: 0; }
+  .history-desc {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--kid-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .history-date {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--kid-sub);
+    margin-top: 3px;
+  }
+  .history-amount {
+    font-size: 20px;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+  .history-amount.negative { color: var(--kid-accent2); }
+  .history-amount.positive { color: var(--parent-accent); }
+  .history-amount.weekly   { color: var(--kid-gold); }
 
-.phase-next .btn-show   { display: none; }
-.phase-next .btn-ok     { display: none; }
-.phase-next .btn-wrong  { display: none; }
-.phase-next .btn-next   { display: flex; }
+  .history-loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--kid-sub);
+    font-size: 15px;
+    font-weight: 600;
+  }
 
-/* ═══════════════════════════════
-   履歴画面 (#screen-history)
-═══════════════════════════════ */
-.history-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-.hist-item { background: var(--green-light); border-radius: 14px; padding: 13px; text-align: center; }
-.hist-item .hn { font-size: 1.7rem; font-weight: 900; color: var(--green); display: block; }
-.hist-item .hl { font-size: .7rem; color: var(--muted); font-weight: 600; }
-
-.word-list-title { font-size: .74rem; font-weight: 700; color: var(--muted); letter-spacing: .05em; margin-bottom: 8px; }
-.word-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-radius: 10px; margin-bottom: 5px; font-size: .86rem; font-weight: 500; }
-.word-item.mastered   { background: var(--green-light); color: var(--green); }
-.word-item.learning   { background: var(--orange-light); color: var(--orange); }
-.word-item.struggling { background: var(--red-light); color: var(--red); }
-.wi-badge { font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
-.word-item.mastered   .wi-badge { background: var(--green); color: #fff; }
-.word-item.learning   .wi-badge { background: var(--orange); color: #fff; }
-.word-item.struggling .wi-badge { background: var(--red); color: #fff; }
-
-/* ═══════════════════════════════
-   お祝いオーバーレイ
-═══════════════════════════════ */
-#celebration {
-  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-  pointer-events: none; z-index: 200; opacity: 0;
-}
-#celebration.pop { animation: celebpop 1.8s ease forwards; }
-@keyframes celebpop {
-  0%  { opacity:0; transform:scale(.6); }
-  18% { opacity:1; transform:scale(1.06); }
-  80% { opacity:1; transform:scale(1); }
-  100%{ opacity:0; }
-}
-.celeb-inner { background: var(--yellow); border-radius: 24px; padding: 22px 36px; font-size: 1.3rem; font-weight: 900; color: #7a5a00; text-align: center; box-shadow: 0 8px 40px rgba(0,0,0,.18); }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════
-  共通ヘッダー
-══════════════════════════════════════════ -->
-<header class="app-header">
-  <div class="logo">漢字<span>かきとり</span></div>
-  <div class="hdr-right">
-    <div id="hdr-master" class="hidden" style="background:var(--card);border:1.5px solid var(--border);border-radius:20px;padding:4px 12px;font-size:.78rem;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:4px;">
-      🏆<span id="hdr-master-num" style="color:var(--green);font-size:1rem;">0</span>
-    </div>
-    <button id="btn-to-history" class="btn-icon hidden" onclick="showScreen('history')">きろく</button>
-    <button id="btn-to-home"    class="btn-icon hidden" onclick="showScreen('home')">ホーム</button>
-  </div>
-</header>
-
-<!-- ══════════════════════════════════════════
-  ① ローディング画面
-══════════════════════════════════════════ -->
-<div id="screen-loading" class="screen">
-  <div class="spinner"></div>
-  <div class="loading-msg" id="loading-msg">問題データを読み込み中…</div>
+<!-- Loading -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-icon">🎮</div>
+  <div class="loading-text">読み込み中…</div>
 </div>
 
-<!-- ══════════════════════════════════════════
-  エラー画面
-══════════════════════════════════════════ -->
-<div id="screen-error" class="screen hidden">
-  <div class="card">
-    <div class="error-box">
-      <h2>⚠️ 読み込みエラー</h2>
-      <p id="error-msg">data/kanji_youji.xlsx が見つかりませんでした。<br>GitHubにファイルをアップロードしてください。</p>
-    </div>
-  </div>
-  <button class="btn btn-primary" onclick="loadXlsx()">🔄 再読み込み</button>
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Rejected flash -->
+<div class="rejected-flash" id="rejected-flash">
+  <div style="font-size:36px;margin-bottom:8px">😢</div>
+  申請が却下されました
 </div>
 
-<!-- ══════════════════════════════════════════
-  ② ホーム画面
-══════════════════════════════════════════ -->
-<div id="screen-home" class="screen hidden">
-
-  <div class="home-title">漢字<span style="color:var(--orange)">かきとり</span></div>
-  <div class="home-sub" id="home-sub">問題データを読み込み中…</div>
-
-  <!-- 教科タブ -->
-  <div id="subject-tabs" class="subject-tabs"></div>
-
-  <!-- 単元選択 -->
-  <div class="card">
-    <div class="unit-section-title">れんしゅうする単元を選んでね（複数OK）</div>
-    <div id="unit-list" class="unit-list"></div>
-  </div>
-
-  <!-- 統計ミニバー -->
-  <div class="card">
-    <div class="unit-section-title" style="margin-bottom:10px">学習じょうきょう</div>
-    <div class="stats-mini">
-      <div class="stats-mini-item"><span class="sn" id="home-stat-total">0</span><span class="sl">といた数</span></div>
-      <div class="stats-mini-item"><span class="sn" id="home-stat-master">0</span><span class="sl">マスター</span></div>
-      <div class="stats-mini-item"><span class="sn" id="home-stat-rate">0%</span><span class="sl">せいかいりつ</span></div>
+<!-- ===== KID SCREEN ===== -->
+<div class="screen active" id="kid-screen">
+  <div class="topbar">
+    <span class="topbar-title">🎮 ゲームチケット</span>
+    <div style="display:flex;gap:8px">
+      <button class="topbar-btn" onclick="showHistory()">📋 履歴</button>
+      <button class="topbar-btn" onclick="goToPasscode()">🔑 保護者</button>
     </div>
   </div>
 
-  <!-- ボタン群 -->
-  <button id="btn-start" class="btn btn-primary" onclick="startStudy()" disabled>スタート！</button>
+  <div class="scroll-area">
+    <div class="ticket-hero">
+      <div class="ticket-icon">🎟️</div>
+      <div class="ticket-count-label">残りチケット</div>
+      <div class="ticket-count" id="ticket-display">—</div>
+      <div class="ticket-unit">枚</div>
+      <div class="ticket-time" id="ticket-time-display"></div>
+    </div>
 
-  <div class="update-row">
-    <button class="btn btn-ghost" onclick="loadXlsx(true)">🔄 問題データ更新</button>
-    <button class="btn btn-ghost" onclick="showScreen('history')">📊 きろく</button>
+    <div class="pending-banner" id="pending-banner">
+      <div class="pending-dot"></div>
+      <span id="pending-text">申請中…保護者の承認待ち</span>
+    </div>
+
+    <div class="request-section">
+      <div class="request-section-title">使いたい時間を選んで申請</div>
+      <div class="request-grid">
+        <button class="req-btn" onclick="requestTickets(1)" id="req-1">
+          <div class="req-btn-time">15分</div>
+          <div class="req-btn-label">15分プレイ</div>
+          <div class="req-btn-tickets">🎟️ 1枚</div>
+        </button>
+        <button class="req-btn" onclick="requestTickets(2)" id="req-2">
+          <div class="req-btn-time">30分</div>
+          <div class="req-btn-label">30分プレイ</div>
+          <div class="req-btn-tickets">🎟️ 2枚</div>
+        </button>
+        <button class="req-btn" onclick="requestTickets(3)" id="req-3">
+          <div class="req-btn-time">45分</div>
+          <div class="req-btn-label">45分プレイ</div>
+          <div class="req-btn-tickets">🎟️ 3枚</div>
+        </button>
+        <button class="req-btn" onclick="requestTickets(4)" id="req-4">
+          <div class="req-btn-time">60分</div>
+          <div class="req-btn-label">60分プレイ</div>
+          <div class="req-btn-tickets">🎟️ 4枚</div>
+        </button>
+      </div>
+    </div>
+    <div class="spacer"></div>
   </div>
-
 </div>
 
-<!-- ══════════════════════════════════════════
-  ③ 学習画面
-══════════════════════════════════════════ -->
-<div id="screen-study" class="screen hidden">
-
-  <!-- プログレス -->
-  <div class="progress-wrap" style="max-width:480px;width:100%">
-    <div class="progress-label">
-      <span id="prog-label">マスター達成率</span>
-      <span id="prog-frac"></span>
-    </div>
-    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+<!-- ===== HISTORY SCREEN ===== -->
+<div class="screen" id="history-screen">
+  <div class="topbar">
+    <span class="topbar-title history-title">📋 利用履歴</span>
+    <button class="topbar-btn" id="history-back-btn" onclick="historyGoBack()">← 戻る</button>
   </div>
-
-  <!-- 問題カード -->
-  <div class="card">
-    <div class="drill-badge" id="study-badge">4・5月</div>
-
-    <div class="q-label">もんだい</div>
-    <div class="q-main" id="q-main" style="font-size:1.5rem;line-height:1.7;letter-spacing:0.04em;"></div>
-
-    <!-- ヒント（重要度・メモ） -->
-    <div class="hint-row" id="hint-row"></div>
-
-    <div class="write-area-label" style="font-size:.74rem;color:var(--muted);font-weight:700;letter-spacing:.06em;margin-bottom:8px;">✏️ ノートに書いてみよう</div>
-    <div class="write-box"><div class="write-placeholder">ここは空欄です<br>紙やノートに書いてね</div></div>
-
-    <!-- 答え -->
-    <div class="answer-reveal" id="answer-reveal">
-      <span class="answer-kanji" id="answer-kanji"></span>
-      <span class="answer-sub">こたえをかくにんしよう ✓</span>
+  <div class="scroll-area">
+    <div class="history-list" id="history-list">
+      <div class="history-loading">読み込み中…</div>
     </div>
-
-    <!-- ストリーク -->
-    <div class="streak-row">
-      <span class="star" id="st1">⭐</span>
-      <span class="star" id="st2">⭐</span>
-      <span class="star" id="st3">⭐</span>
-    </div>
-    <div class="master-badge" id="master-badge">🏆 マスター！</div>
+    <div class="spacer"></div>
   </div>
-
-  <!-- ボタン -->
-  <div class="btn-row phase-write" id="study-btn-row">
-    <button class="btn btn-primary btn-show" onclick="showAnswer()">📖 答えを見る</button>
-    <button class="btn btn-primary btn-ok"   onclick="markCorrect()">⭕ できた！</button>
-    <button class="btn btn-danger  btn-wrong" onclick="markWrong()">❌ まちがえた</button>
-    <button class="btn btn-ghost   btn-next"  onclick="nextQuestion()">→ 次の問題へ</button>
-    <button class="btn btn-ghost   btn-back"  onclick="showScreen('home')">← もどる</button>
-  </div>
-
 </div>
 
-<!-- ══════════════════════════════════════════
-  ④ 履歴画面
-══════════════════════════════════════════ -->
-<div id="screen-history" class="screen hidden">
-  <div class="card">
-    <div class="unit-section-title" style="margin-bottom:14px;">📊 学習きろく</div>
-    <div class="history-grid">
-      <div class="hist-item"><span class="hn" id="h-total">0</span><span class="hl">といた数</span></div>
-      <div class="hist-item"><span class="hn" id="h-correct">0</span><span class="hl">せいかい数</span></div>
-      <div class="hist-item"><span class="hn" id="h-master">0</span><span class="hl">マスター</span></div>
-      <div class="hist-item"><span class="hn" id="h-rate">0%</span><span class="hl">せいかいりつ</span></div>
+<!-- ===== PASSCODE SCREEN ===== -->
+<div class="screen" id="passcode-screen">
+  <div class="passcode-card">
+    <div class="passcode-icon">🔐</div>
+    <div class="passcode-title">保護者用パスコード</div>
+    <div class="passcode-sub">4桁のパスコードを入力してください</div>
+    <div class="passcode-dots" id="passcode-dots">
+      <div class="passcode-dot" id="dot-0"></div>
+      <div class="passcode-dot" id="dot-1"></div>
+      <div class="passcode-dot" id="dot-2"></div>
+      <div class="passcode-dot" id="dot-3"></div>
     </div>
-    <div class="word-list-title">ことばのじょうたい（といたもの）</div>
-    <div id="history-word-list"></div>
+    <div class="passcode-keypad">
+      <button class="key-btn" onclick="keyPress('1')">1</button>
+      <button class="key-btn" onclick="keyPress('2')">2</button>
+      <button class="key-btn" onclick="keyPress('3')">3</button>
+      <button class="key-btn" onclick="keyPress('4')">4</button>
+      <button class="key-btn" onclick="keyPress('5')">5</button>
+      <button class="key-btn" onclick="keyPress('6')">6</button>
+      <button class="key-btn" onclick="keyPress('7')">7</button>
+      <button class="key-btn" onclick="keyPress('8')">8</button>
+      <button class="key-btn" onclick="keyPress('9')">9</button>
+      <button class="key-btn empty"></button>
+      <button class="key-btn" onclick="keyPress('0')">0</button>
+      <button class="key-btn del" onclick="keyDel()">⌫</button>
+    </div>
+    <button class="topbar-btn" style="margin-top:20px;width:100%;background:rgba(255,255,255,0.06);color:var(--parent-sub)" onclick="showScreen('kid-screen')">← 戻る</button>
   </div>
-  <button class="btn btn-ghost" onclick="showScreen('home')">← もどる</button>
-  <button class="btn btn-danger" onclick="confirmResetHistory()" style="margin-top:4px;font-size:.85rem;padding:12px;">🗑 学習履歴をリセット</button>
 </div>
 
-<!-- お祝い -->
-<div id="celebration"><div class="celeb-inner" id="celeb-msg">🎉</div></div>
+<!-- ===== PARENT SCREEN ===== -->
+<div class="screen" id="parent-screen">
+  <div class="topbar">
+    <span class="topbar-title parent-topbar-title">🛡️ 保護者管理</span>
+    <div style="display:flex;gap:8px">
+      <button class="topbar-btn" onclick="showHistory('parent')">📋 履歴</button>
+      <button class="topbar-btn" onclick="parentLogout()">ログアウト</button>
+    </div>
+  </div>
 
-<!-- ══════════════════════════════════════════
-  JavaScript
-══════════════════════════════════════════ -->
+  <div class="scroll-area">
+    <!-- Ticket adjust -->
+    <div class="section">
+      <div class="section-header">チケット残高</div>
+      <div class="ticket-adjust-card">
+        <div class="adjust-btns">
+          <button class="adj-btn minus" onclick="adjustTickets(-1)">－</button>
+        </div>
+        <div class="adjust-count-wrap">
+          <div class="adjust-count-label">現在の枚数</div>
+          <div class="adjust-count" id="parent-ticket-display">—</div>
+          <div class="adjust-count-unit">枚（<span id="parent-time-display">—</span>）</div>
+        </div>
+        <div class="adjust-btns">
+          <button class="adj-btn plus" onclick="adjustTickets(1)">＋</button>
+        </div>
+      </div>
+      <div class="adjust-quick-btns">
+        <button class="quick-btn" onclick="adjustTickets(4)">＋4枚<br><small>+1時間</small></button>
+        <button class="quick-btn" onclick="adjustTickets(8)">＋8枚<br><small>+2時間</small></button>
+        <button class="quick-btn" onclick="adjustTickets(40)">＋40枚<br><small>週分追加</small></button>
+        <button class="quick-btn negative" onclick="adjustTickets(-4)">－4枚<br><small>-1時間</small></button>
+      </div>
+    </div>
+
+    <!-- Weekly info -->
+    <div class="weekly-info" id="weekly-info">
+      📅 <span id="weekly-info-text">読み込み中…</span>
+    </div>
+
+    <!-- Requests -->
+    <div class="section">
+      <div class="section-header">
+        申請中リクエスト
+        <span class="badge" id="req-badge" style="display:none">0</span>
+      </div>
+      <div id="requests-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">✅</div>
+          申請はありません
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+  </div>
+</div>
+
 <script>
-'use strict';
+// =============================================
+// ⚙️ CONFIGURATION — ここを書き換えてください
+// =============================================
+const SUPABASE_URL  = 'https://ximrinkiptgumwkgbkgn.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_9FWlAEh4BDwa2xLseUPQVg_yAeiAPJ3';
+const PARENT_PASSCODE = '1124'; // ← 好きな4桁に変更
 
-/* ─────────────────────────────────────────
-   設定
-───────────────────────────────────────── */
-const XLSX_PATH    = 'data/kanji_youji.xlsx';
-const STORAGE_KEY  = 'kanjigame_v4';
-const MASTER_STREAK = 3;   // 何回連続正解でマスター
+// =============================================
+// ダブルタップズーム防止
+// =============================================
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 300) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
 
-/* ─────────────────────────────────────────
-   ストレージ（localStorage フォールバック付き）
-───────────────────────────────────────── */
-let _store = null;
-function getStore() {
-  if (_store) return _store;
+// =============================================
+// STATE
+// =============================================
+let sbClient, tickets = 0, pendingRequestId = null;
+let channel; // Realtime channel
+
+// =============================================
+// INIT
+// =============================================
+document.addEventListener('DOMContentLoaded', async () => {
+  sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  await loadState();
+  subscribeRealtime();
+  hideLoading();
+});
+
+async function loadState() {
   try {
-    localStorage.setItem('__t', '1'); localStorage.removeItem('__t');
-    _store = localStorage;
-  } catch {
-    // localStorage 使用不可（ローカルファイル等）→ メモリ内のみ
-    const mem = {};
-    _store = {
-      getItem: k => mem[k] ?? null,
-      setItem: (k, v) => { mem[k] = v; },
-      removeItem: k => { delete mem[k]; },
-    };
-  }
-  return _store;
-}
-function loadState()  { try { const s = getStore().getItem(STORAGE_KEY); return s ? JSON.parse(s) : null; } catch { return null; } }
-function saveState()  { try { getStore().setItem(STORAGE_KEY, JSON.stringify(state)); } catch {} }
-
-/* ─────────────────────────────────────────
-   アプリ状態
-───────────────────────────────────────── */
-/*
-  問題データ構造（Excelから読み込み後）:
-  db = {
-    '漢字': {                        // シート名 = 教科
-      '4・5月': [                    // 単元
-        { id, subject, unit, mondai, kotae, jyuyo, memo, ...extra },
-        ...
-      ],
-      ...
-    },
-    ...
-  }
-*/
-let db      = {};          // 問題データベース（Excelから生成）
-let state   = null;        // 学習履歴
-let currentSubject = '';   // 選択中の教科
-let selectedUnits  = new Set();  // 選択中の単元
-let activeWords    = [];   // 今回の出題リスト
-let currentWord    = null; // 表示中の問題
-
-/* ─────────────────────────────────────────
-   画面切り替え
-───────────────────────────────────────── */
-const SCREENS = ['loading', 'error', 'home', 'study', 'history'];
-
-function showScreen(name) {
-  SCREENS.forEach(s => {
-    document.getElementById(`screen-${s}`).classList.toggle('hidden', s !== name);
-  });
-
-  // ヘッダーボタン表示制御
-  const inStudy   = name === 'study';
-  const inHome    = name === 'home';
-  const inHistory = name === 'history';
-  const showMaster = inStudy || inHistory;
-
-  document.getElementById('hdr-master').classList.toggle('hidden', !showMaster);
-  document.getElementById('btn-to-history').classList.toggle('hidden', !inStudy);
-  document.getElementById('btn-to-home').classList.toggle('hidden', inHome || name === 'loading' || name === 'error');
-
-  if (name === 'history') renderHistory();
-  if (name === 'home') renderHomeStats();
-}
-
-/* ─────────────────────────────────────────
-   Excel 読み込み
-───────────────────────────────────────── */
-async function loadXlsx(forceRefresh = false) {
-  showScreen('loading');
-  document.getElementById('loading-msg').textContent = '問題データを読み込み中…';
-
-  try {
-    // キャッシュバスター（強制更新時）
-    const url = forceRefresh
-      ? `${XLSX_PATH}?v=${Date.now()}`
-      : XLSX_PATH;
-
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
-
-    const buf  = await res.arrayBuffer();
-    const wb   = XLSX.read(buf, { type: 'array' });
-
-    db = {};
-    wb.SheetNames.forEach(sheetName => {
-      const ws   = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      // 列名マッピング（将来の列追加に対応）
-      const words = rows
-        .filter(r => r['問題'] && r['答え'])  // 問題・答えが空の行はスキップ
-        .map((r, idx) => {
-          const unit = String(r['単元'] || '未分類').trim();
-          return {
-            id:      `${sheetName}_${unit}_${idx}`,
-            subject: sheetName,
-            unit:    unit,
-            mondai:  String(r['問題']).trim(),
-            kotae:   String(r['答え']).trim(),
-            jyuyo:   Number(r['重要度'] ?? 2),
-            memo:    String(r['メモ']   || '').trim(),
-            // 将来の列（あれば自動取得）
-            hint:    String(r['ヒント'] || '').trim(),
-            tag:     String(r['タグ']   || '').trim(),
-            freq:    r['出題頻度'] ?? null,
-          };
-        });
-
-      // 単元ごとにグループ化
-      const byUnit = {};
-      words.forEach(w => {
-        if (!byUnit[w.unit]) byUnit[w.unit] = [];
-        byUnit[w.unit].push(w);
-      });
-      db[sheetName] = byUnit;
-    });
-
-    if (Object.keys(db).length === 0) throw new Error('シートが見つかりませんでした');
-
-    // 読み込み済み問題のIDをstateへ反映（問題追加に対応）
-    ensureStateForAllWords();
-
-    // 最初の教科をデフォルト選択
-    currentSubject = Object.keys(db)[0];
-    selectedUnits  = new Set();
-
-    renderHome();
-    showScreen('home');
-
-  } catch (err) {
-    console.error(err);
-    document.getElementById('error-msg').textContent =
-      `${XLSX_PATH} の読み込みに失敗しました。\n\nGitHubに data/kanji_youji.xlsx をアップロードしてください。\n\nエラー: ${err.message}`;
-    showScreen('error');
-  }
-}
-
-/* ─────────────────────────────────────────
-   ステート初期化・補完
-───────────────────────────────────────── */
-function initState() {
-  return { progress: {}, totalCorrect: 0, totalAttempts: 0 };
-}
-
-function ensureStateForAllWords() {
-  if (!state) state = loadState() || initState();
-  // 全問題に対して progress エントリを保証（新問題追加時も対応）
-  Object.values(db).forEach(units => {
-    Object.values(units).forEach(words => {
-      words.forEach(w => {
-        if (!state.progress[w.id]) {
-          state.progress[w.id] = { streak: 0, wrong: 0, mastered: false, totalCorrect: 0 };
-        }
-      });
-    });
-  });
-  saveState();
-}
-
-/* ─────────────────────────────────────────
-   ホーム画面レンダリング
-───────────────────────────────────────── */
-function renderHome() {
-  renderSubjectTabs();
-  renderUnitList();
-  renderHomeStats();
-  updateHomeSubtitle();
-}
-
-function updateHomeSubtitle() {
-  const subjects = Object.keys(db);
-  let total = 0;
-  subjects.forEach(s => Object.values(db[s]).forEach(u => { total += u.length; }));
-  document.getElementById('home-sub').textContent = `${subjects.length}教科 / 全${total}問`;
-}
-
-function renderSubjectTabs() {
-  const container = document.getElementById('subject-tabs');
-  container.innerHTML = '';
-  Object.keys(db).forEach(sub => {
-    const btn = document.createElement('button');
-    btn.className = 'subject-tab' + (sub === currentSubject ? ' active' : '');
-    btn.textContent = sub;
-    btn.onclick = () => { currentSubject = sub; selectedUnits = new Set(); renderSubjectTabs(); renderUnitList(); };
-    container.appendChild(btn);
-  });
-}
-
-function renderUnitList() {
-  const container = document.getElementById('unit-list');
-  container.innerHTML = '';
-  if (!db[currentSubject]) return;
-
-  Object.entries(db[currentSubject]).forEach(([unit, words]) => {
-    const mastered = words.filter(w => state.progress[w.id]?.mastered).length;
-    const btn = document.createElement('button');
-    btn.className = 'unit-btn' + (selectedUnits.has(unit) ? ' selected' : '');
-    btn.innerHTML = `
-      <span>${unit}</span>
-      <span style="display:flex;align-items:center;gap:8px">
-        <span class="u-count">${mastered}/${words.length}問</span>
-        <span class="unit-check">${selectedUnits.has(unit) ? '✓' : ''}</span>
-      </span>`;
-    btn.onclick = () => {
-      selectedUnits.has(unit) ? selectedUnits.delete(unit) : selectedUnits.add(unit);
-      renderUnitList();
-      document.getElementById('btn-start').disabled = selectedUnits.size === 0;
-    };
-    container.appendChild(btn);
-  });
-  document.getElementById('btn-start').disabled = selectedUnits.size === 0;
-}
-
-function renderHomeStats() {
-  if (!state) return;
-  const total   = state.totalAttempts;
-  const correct = state.totalCorrect;
-  const master  = Object.values(state.progress).filter(p => p.mastered).length;
-  const rate    = total > 0 ? Math.round(correct / total * 100) : 0;
-  document.getElementById('home-stat-total').textContent  = total;
-  document.getElementById('home-stat-master').textContent = master;
-  document.getElementById('home-stat-rate').textContent   = rate + '%';
-  document.getElementById('hdr-master-num').textContent   = master;
-}
-
-/* ─────────────────────────────────────────
-   学習開始
-───────────────────────────────────────── */
-function startStudy() {
-  if (selectedUnits.size === 0) return;
-  activeWords = [];
-  selectedUnits.forEach(unit => {
-    if (db[currentSubject]?.[unit]) {
-      activeWords = activeWords.concat(db[currentSubject][unit]);
+    // ── ① 設定確認（URLキー未設定の早期検知）──────────────
+    if (SUPABASE_URL.includes('YOUR_PROJECT') || SUPABASE_ANON.includes('YOUR_ANON')) {
+      showToast('⚠️ SupabaseのURLとキーを設定してください');
+      hideLoading();
+      return;
     }
-  });
-  showScreen('study');
-  renderQuestion();
-}
 
-/* ─────────────────────────────────────────
-   問題選択（重み付きランダム）
-───────────────────────────────────────── */
-function pickWord() {
-  const notMastered = activeWords.filter(w => !state.progress[w.id]?.mastered);
-  const pool = notMastered.length > 0 ? notMastered : activeWords;
+    // ── ② チケット残高を取得 ──────────────────────────────
+    let { data: cfg, error: cfgErr } = await sbClient
+      .from('game_config')
+      .select('*')
+      .eq('id', 1)
+      .single();
 
-  const weights = pool.map(w => {
-    const p = state.progress[w.id] || { streak: 0, wrong: 0 };
-    // 間違い多い→重く / 連続正解多い→軽く / 重要度が高い→やや重く
-    const jyuyo = w.jyuyo || 2;
-    return Math.max(0.2, 1 + p.wrong * 3 - p.streak * 0.5 + (jyuyo - 2) * 0.5);
-  });
+    // レコードがなければ初期データを作成
+    if (cfgErr && cfgErr.code === 'PGRST116') {
+      const { data: inserted, error: insertErr } = await sbClient
+        .from('game_config')
+        .insert({ id: 1, tickets: 0, last_weekly_grant: null })
+        .select()
+        .single();
+      if (insertErr) throw new Error('初期データの作成に失敗: ' + insertErr.message);
+      cfg = inserted;
+    } else if (cfgErr) {
+      throw new Error('game_config の読み込みエラー: ' + cfgErr.message);
+    }
 
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = Math.random() * total;
-  for (let i = 0; i < pool.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return pool[i];
+    if (cfg) {
+      tickets = cfg.tickets;
+      checkWeeklyReset(cfg);
+      renderTickets();
+      renderParentTickets();
+      renderWeeklyInfo(cfg.last_weekly_grant);
+    }
+
+    // ── ③ 保留中の申請を取得 ──────────────────────────────
+    const { data: reqs, error: reqsErr } = await sbClient
+      .from('ticket_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (reqsErr) throw new Error('ticket_requests の読み込みエラー: ' + reqsErr.message);
+
+    if (reqs && reqs.length > 0) {
+      pendingRequestId = reqs[0].id;
+      showPendingBanner(reqs[0].amount);
+      disableReqButtons(true);
+    }
+
+    renderRequests(reqs || []);
+
+  } catch (e) {
+    console.error('[loadState]', e);
+    // エラー内容を画面に表示して原因を特定しやすくする
+    showToast('⚠️ ' + (e.message || 'データの読み込みに失敗しました'));
+    hideLoading();
   }
-  return pool[pool.length - 1];
 }
 
-/* ─────────────────────────────────────────
-   問題レンダリング
-───────────────────────────────────────── */
-function renderQuestion() {
-  currentWord = pickWord();
-  const p = state.progress[currentWord.id] || { streak: 0, mastered: false };
+// =============================================
+// WEEKLY RESET
+// =============================================
+async function checkWeeklyReset(cfg) {
+  const now = new Date();
+  const monday = getThisMonday(now);
+  const lastGrant = cfg.last_weekly_grant ? new Date(cfg.last_weekly_grant) : null;
 
-  document.getElementById('study-badge').textContent  = `${currentWord.subject} / ${currentWord.unit}`;
-  document.getElementById('answer-kanji').textContent = currentWord.kotae;
+  // 最終付与日が今週月曜日より前なら追加
+  if (!lastGrant || lastGrant < monday) {
+    const newTickets = cfg.tickets + 40;
+    const [r1] = await Promise.all([
+      sbClient.from('game_config').update({
+        tickets: newTickets,
+        last_weekly_grant: monday.toISOString()
+      }).eq('id', 1),
+      sbClient.from('ticket_history').insert({
+        type: 'weekly',
+        amount: 40,
+        note: '週間チケット自動追加 +40枚'
+      })
+    ]);
 
-  // 問題文: mondai 列の {{ひらがな}} を下線付きひらがなに変換
-  // 例: "{{じょうほう}}を整理する" → <span class="q-underline">じょうほう</span>を整理する
-  const qEl = document.getElementById('q-main');
-  const mondai = currentWord.mondai || '';
-  qEl.innerHTML = mondai.replace(/\{\{([^}]+)\}\}/g,
-    (_, yomi) => `<span class="q-underline">${yomi}</span>`
-  );
-
-  // ヒント行（重要度・タグ・ヒント）
-  const hintRow = document.getElementById('hint-row');
-  hintRow.innerHTML = '';
-  if (currentWord.jyuyo >= 3) {
-    const t = document.createElement('span');
-    t.className = 'hint-tag'; t.textContent = '⭐ 重要';
-    hintRow.appendChild(t);
+    if (!r1.error) {
+      tickets = newTickets;
+      renderTickets();
+      renderParentTickets();
+      showToast('🎉 週間チケット40枚が追加されました！おつかれさま');
+    }
   }
-  if (currentWord.tag) {
-    const t = document.createElement('span');
-    t.className = 'memo-tag'; t.textContent = '🏷 ' + currentWord.tag;
-    hintRow.appendChild(t);
-  }
-  if (currentWord.hint) {
-    const t = document.createElement('span');
-    t.className = 'memo-tag'; t.textContent = '💡 ' + currentWord.hint;
-    hintRow.appendChild(t);
-  }
-
-  document.getElementById('answer-reveal').classList.remove('show');
-  setPhase('write');
-  renderStreak(p.streak, p.mastered);
-  renderProgress();
-  updateMasterCount();
 }
 
-function setPhase(phase) {
-  document.getElementById('study-btn-row').className = `btn-row phase-${phase}`;
+function getThisMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun, 1=Mon...
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
-function renderStreak(streak, mastered) {
-  for (let i = 1; i <= MASTER_STREAK; i++) {
-    document.getElementById(`st${i}`).classList.toggle('lit', i <= streak);
-  }
-  document.getElementById('master-badge').classList.toggle('show', mastered);
+// =============================================
+// REALTIME
+// =============================================
+function subscribeRealtime() {
+  channel = sbClient
+    .channel('game-updates')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'game_config'
+    }, (payload) => {
+      if (payload.new) {
+        tickets = payload.new.tickets;
+        renderTickets();
+        renderParentTickets();
+        renderWeeklyInfo(payload.new.last_weekly_grant);
+      }
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'ticket_requests'
+    }, async (payload) => {
+      await refreshRequests();
+
+      // 自分の申請が更新された場合
+      if (payload.new && payload.new.id === pendingRequestId) {
+        if (payload.new.status === 'approved') {
+          pendingRequestId = null;
+          hidePendingBanner();
+          disableReqButtons(false);
+          showToast('✅ 承認されました！楽しんでね🎮');
+        } else if (payload.new.status === 'rejected') {
+          pendingRequestId = null;
+          hidePendingBanner();
+          disableReqButtons(false);
+          showRejected();
+        }
+      }
+    })
+    .subscribe();
 }
 
-function renderProgress() {
-  const mastered = activeWords.filter(w => state.progress[w.id]?.mastered).length;
-  const pct = Math.round(mastered / activeWords.length * 100);
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('prog-frac').textContent = `${mastered} / ${activeWords.length}`;
+async function refreshRequests() {
+  const { data: reqs } = await sbClient
+    .from('ticket_requests')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  renderRequests(reqs || []);
 }
 
-function updateMasterCount() {
-  const n = Object.values(state.progress).filter(p => p.mastered).length;
-  document.getElementById('hdr-master-num').textContent = n;
+// =============================================
+// TICKET RENDER
+// =============================================
+function renderTickets() {
+  const el = document.getElementById('ticket-display');
+  el.textContent = tickets;
+  el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 400);
+
+  const mins = tickets * 15;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  document.getElementById('ticket-time-display').textContent =
+    h > 0 ? `${h}時間${m > 0 ? m + '分' : ''}` : `${m}分`;
 }
 
-/* ─────────────────────────────────────────
-   操作
-───────────────────────────────────────── */
-function showAnswer() {
-  document.getElementById('answer-reveal').classList.add('show');
-  setPhase('judge');
+function renderParentTickets() {
+  document.getElementById('parent-ticket-display').textContent = tickets;
+  const mins = tickets * 15;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  document.getElementById('parent-time-display').textContent =
+    h > 0 ? `${h}時間${m > 0 ? m + '分' : ''}` : `${m}分`;
 }
 
-function markCorrect() {
-  const p = state.progress[currentWord.id];
-  p.streak = Math.min(p.streak + 1, MASTER_STREAK);
-  p.totalCorrect++;
-  state.totalCorrect++;
-  state.totalAttempts++;
-
-  if (p.streak >= MASTER_STREAK && !p.mastered) {
-    p.mastered = true;
-    celebrate(`🏆「${currentWord.kotae}」マスター！`);
-  }
-  saveState();
-  setPhase('next');
-  renderStreak(p.streak, p.mastered);
-  renderProgress();
-  updateMasterCount();
+function renderWeeklyInfo(lastGrant) {
+  if (!lastGrant) return;
+  const d = new Date(lastGrant);
+  const nextMonday = new Date(d);
+  nextMonday.setDate(nextMonday.getDate() + 7);
+  const opts = { month: 'numeric', day: 'numeric' };
+  document.getElementById('weekly-info-text').textContent =
+    `今週の週間チケット（40枚）は付与済みです。次回付与: ${nextMonday.toLocaleDateString('ja-JP', opts)}（月）`;
 }
 
-function markWrong() {
-  const p = state.progress[currentWord.id];
-  p.streak = 0;
-  p.wrong++;
-  state.totalAttempts++;
-  saveState();
-  setPhase('next');
-  renderStreak(p.streak, p.mastered);
-}
+// =============================================
+// KID ACTIONS
+// =============================================
+async function requestTickets(amount) {
+  if (pendingRequestId) return;
+  if (tickets < amount) { showToast('チケットが足りません！'); return; }
 
-function nextQuestion() { renderQuestion(); }
+  disableReqButtons(true);
 
-function celebrate(msg) {
-  const el = document.getElementById('celebration');
-  document.getElementById('celeb-msg').textContent = msg;
-  el.classList.remove('pop');
-  void el.offsetWidth;
-  el.classList.add('pop');
-}
+  const { data, error } = await sbClient
+    .from('ticket_requests')
+    .insert({ amount, status: 'pending' })
+    .select()
+    .single();
 
-/* ─────────────────────────────────────────
-   履歴画面
-───────────────────────────────────────── */
-function renderHistory() {
-  const total   = state.totalAttempts;
-  const correct = state.totalCorrect;
-  const master  = Object.values(state.progress).filter(p => p.mastered).length;
-  const rate    = total > 0 ? Math.round(correct / total * 100) : 0;
-
-  document.getElementById('h-total').textContent   = total;
-  document.getElementById('h-correct').textContent = correct;
-  document.getElementById('h-master').textContent  = master;
-  document.getElementById('h-rate').textContent    = rate + '%';
-  document.getElementById('hdr-master-num').textContent = master;
-
-  // 全問題を対象に一覧化
-  const allWords = [];
-  Object.values(db).forEach(units => Object.values(units).forEach(words => allWords.push(...words)));
-
-  const attempted = allWords
-    .filter(w => { const p = state.progress[w.id]; return p && (p.totalCorrect > 0 || p.wrong > 0); })
-    .sort((a, b) => {
-      const pa = state.progress[a.id], pb = state.progress[b.id];
-      if (pa.mastered !== pb.mastered) return pa.mastered ? -1 : 1;
-      return pb.wrong - pa.wrong;
-    });
-
-  const container = document.getElementById('history-word-list');
-  container.innerHTML = '';
-
-  if (attempted.length === 0) {
-    container.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:12px 0">まだといていないよ</div>';
+  if (error) {
+    showToast('⚠️ 申請できませんでした');
+    disableReqButtons(false);
     return;
   }
 
-  attempted.forEach(w => {
-    const p   = state.progress[w.id];
-    const cls = p.mastered ? 'mastered' : p.wrong >= 3 ? 'struggling' : 'learning';
-    const badge = p.mastered ? 'マスター' : p.wrong >= 3 ? 'にがて⚠' : `⭐${p.streak}/${MASTER_STREAK}`;
-    const div = document.createElement('div');
-    div.className = `word-item ${cls}`;
-    div.innerHTML = `<span>${w.kotae}（${w.mondai}）</span><span class="wi-badge">${badge}</span>`;
-    container.appendChild(div);
+  pendingRequestId = data.id;
+  showPendingBanner(amount);
+}
+
+function showPendingBanner(amount) {
+  const banner = document.getElementById('pending-banner');
+  document.getElementById('pending-text').textContent =
+    `🎮 ${amount * 15}分を申請中… 保護者の承認待ち`;
+  banner.classList.add('visible');
+}
+function hidePendingBanner() {
+  document.getElementById('pending-banner').classList.remove('visible');
+}
+
+function disableReqButtons(disabled) {
+  [1,2,3,4].forEach(i => {
+    document.getElementById(`req-${i}`).disabled = disabled;
   });
 }
 
-function confirmResetHistory() {
-  if (!confirm('学習履歴をすべてリセットしますか？\nこの操作は取り消せません。')) return;
-  state = initState();
-  ensureStateForAllWords();
-  saveState();
-  renderHistory();
-  alert('リセットしました。');
+function showRejected() {
+  const el = document.getElementById('rejected-flash');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-/* ─────────────────────────────────────────
-   起動
-───────────────────────────────────────── */
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => loadXlsx());
-} else {
-  loadXlsx();
+// =============================================
+// PARENT ACTIONS
+// =============================================
+async function adjustTickets(delta) {
+  const newVal = Math.max(0, tickets + delta);
+  const actualDelta = newVal - tickets; // 0未満クランプ後の実際の変化量
+  if (actualDelta === 0) return;
+
+  const [r1] = await Promise.all([
+    sbClient.from('game_config').update({ tickets: newVal }).eq('id', 1),
+    sbClient.from('ticket_history').insert({
+      type: actualDelta > 0 ? 'adjust_plus' : 'adjust_minus',
+      amount: actualDelta,
+      note: actualDelta > 0 ? `手動追加 +${actualDelta}枚` : `手動減算 ${actualDelta}枚`
+    })
+  ]);
+
+  if (!r1.error) {
+    tickets = newVal;
+    renderTickets();
+    renderParentTickets();
+    showToast(delta > 0 ? `＋${delta}枚 追加しました` : `${delta}枚 減らしました`);
+  }
+}
+
+async function approveRequest(reqId, amount) {
+  const newTickets = Math.max(0, tickets - amount);
+
+  // チケット減らす & 申請承認 & 履歴記録
+  const [r1, r2] = await Promise.all([
+    sbClient.from('game_config').update({ tickets: newTickets }).eq('id', 1),
+    sbClient.from('ticket_requests').update({ status: 'approved' }).eq('id', reqId),
+    sbClient.from('ticket_history').insert({
+      type: 'use',
+      amount: -amount,
+      note: `ゲーム使用 ${amount * 15}分（${amount}枚）`
+    })
+  ]);
+
+  if (!r1.error && !r2.error) {
+    tickets = newTickets;
+    renderTickets();
+    renderParentTickets();
+    showToast(`✅ 承認しました（-${amount}枚）`);
+  }
+}
+
+async function rejectRequest(reqId) {
+  const { error } = await sbClient
+    .from('ticket_requests')
+    .update({ status: 'rejected' })
+    .eq('id', reqId);
+
+  if (!error) showToast('❌ 却下しました');
+}
+
+function renderRequests(reqs) {
+  const list = document.getElementById('requests-list');
+  const badge = document.getElementById('req-badge');
+
+  if (!reqs || reqs.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">✅</div>申請はありません</div>`;
+    badge.style.display = 'none';
+    return;
+  }
+
+  badge.textContent = reqs.length;
+  badge.style.display = 'inline';
+
+  list.innerHTML = reqs.map(r => {
+    const mins = r.amount * 15;
+    const d = new Date(r.created_at);
+    const timeStr = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    return `
+    <div class="request-card" id="rcard-${r.id}">
+      <div class="request-card-info">
+        <div class="request-card-time">${mins}分</div>
+        <div class="request-card-tickets">🎟️ ${r.amount}枚</div>
+        <div class="request-card-meta">${timeStr} に申請</div>
+      </div>
+      <div class="request-card-actions">
+        <button class="action-btn approve" onclick="approveRequest('${r.id}', ${r.amount})">承認</button>
+        <button class="action-btn reject" onclick="rejectRequest('${r.id}')">却下</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// =============================================
+// HISTORY
+// =============================================
+let historyFromScreen = 'kid-screen'; // 戻り先を記録
+
+async function showHistory(from = 'kid') {
+  historyFromScreen = from === 'parent' ? 'parent-screen' : 'kid-screen';
+  showScreen('history-screen');
+
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div class="history-loading">読み込み中…</div>';
+
+  const { data, error } = await sbClient
+    .from('ticket_history')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  if (error || !data || data.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📭</div>${error ? '読み込みに失敗しました' : 'まだ履歴がありません'}</div>`;
+    return;
+  }
+
+  list.innerHTML = data.map(h => {
+    const d = new Date(h.created_at);
+    const dateStr = d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+    const timeStr = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+
+    let icon, typeClass, amountClass, amountStr;
+    if (h.type === 'use') {
+      icon = '🎮'; typeClass = 'type-use'; amountClass = 'negative';
+      amountStr = `${h.amount}枚`;
+    } else if (h.type === 'adjust_plus') {
+      icon = '⭐'; typeClass = 'type-adjust-plus'; amountClass = 'positive';
+      amountStr = `+${h.amount}枚`;
+    } else if (h.type === 'adjust_minus') {
+      icon = '📉'; typeClass = 'type-adjust-minus'; amountClass = 'negative';
+      amountStr = `${h.amount}枚`;
+    } else { // weekly
+      icon = '🗓️'; typeClass = 'type-weekly'; amountClass = 'weekly';
+      amountStr = `+${h.amount}枚`;
+    }
+
+    return `
+    <div class="history-item ${typeClass}">
+      <div class="history-icon">${icon}</div>
+      <div class="history-info">
+        <div class="history-desc">${h.note || '—'}</div>
+        <div class="history-date">${dateStr} ${timeStr}</div>
+      </div>
+      <div class="history-amount ${amountClass}">${amountStr}</div>
+    </div>`;
+  }).join('');
+}
+
+function historyGoBack() {
+  showScreen(historyFromScreen);
+}
+
+// =============================================
+// PASSCODE
+// =============================================
+let passcodeInput = '';
+
+function keyPress(d) {
+  if (passcodeInput.length >= 4) return;
+  passcodeInput += d;
+  updateDots();
+  if (passcodeInput.length === 4) {
+    setTimeout(checkPasscode, 150);
+  }
+}
+
+function keyDel() {
+  passcodeInput = passcodeInput.slice(0, -1);
+  updateDots();
+}
+
+function updateDots(error = false) {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    dot.classList.remove('filled', 'error');
+    if (error) dot.classList.add('error');
+    else if (i < passcodeInput.length) dot.classList.add('filled');
+  }
+}
+
+function checkPasscode() {
+  if (passcodeInput === PARENT_PASSCODE) {
+    passcodeInput = '';
+    updateDots();
+    showScreen('parent-screen');
+    document.body.classList.add('parent-mode');
+    refreshRequests();
+  } else {
+    updateDots(true);
+    setTimeout(() => {
+      passcodeInput = '';
+      updateDots();
+    }, 600);
+  }
+}
+
+function goToPasscode() {
+  passcodeInput = '';
+  updateDots();
+  showScreen('passcode-screen');
+}
+
+function parentLogout() {
+  showScreen('kid-screen');
+  document.body.classList.remove('parent-mode');
+}
+
+// =============================================
+// SCREEN NAV
+// =============================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// =============================================
+// UI HELPERS
+// =============================================
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function hideLoading() {
+  const el = document.getElementById('loading-overlay');
+  el.classList.add('hidden');
+  setTimeout(() => el.remove(), 500);
 }
 </script>
 </body>
