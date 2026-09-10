@@ -166,6 +166,14 @@ body {
 .q-ctx   { font-size: .9rem; color: var(--muted); line-height: 1.7; background: var(--bg); border-radius: 10px; padding: 8px 12px; margin-bottom: 18px; }
 .q-ctx .blank { display: inline-block; border-bottom: 2.5px solid var(--green); background: var(--green-light); border-radius: 4px; padding: 0 4px; color: transparent; user-select: none; }
 
+/* {{}} で囲まれたひらがな部分 → 下線 */
+.q-underline {
+  border-bottom: 2.5px solid var(--green);
+  padding-bottom: 1px;
+  font-weight: 900;
+  color: var(--green);
+}
+
 /* ヒント表示エリア */
 .hint-row { display: flex; gap: 6px; margin-bottom: 14px; }
 .hint-tag { font-size: .72rem; background: var(--orange-light); color: var(--orange); border-radius: 8px; padding: 3px 10px; font-weight: 700; }
@@ -336,10 +344,8 @@ body {
   <div class="card">
     <div class="drill-badge" id="study-badge">4・5月</div>
 
-    <div class="q-label">よみかた</div>
-    <div class="q-main" id="q-main"></div>
-
-    <div class="q-ctx" id="q-ctx"></div>
+    <div class="q-label">もんだい</div>
+    <div class="q-main" id="q-main" style="font-size:1.5rem;line-height:1.7;letter-spacing:0.04em;"></div>
 
     <!-- ヒント（重要度・メモ） -->
     <div class="hint-row" id="hint-row"></div>
@@ -683,20 +689,16 @@ function renderQuestion() {
   currentWord = pickWord();
   const p = state.progress[currentWord.id] || { streak: 0, mastered: false };
 
-  document.getElementById('study-badge').textContent   = `${currentWord.subject} / ${currentWord.unit}`;
-  document.getElementById('q-main').textContent        = currentWord.mondai;
-  document.getElementById('answer-kanji').textContent  = currentWord.kotae;
+  document.getElementById('study-badge').textContent  = `${currentWord.subject} / ${currentWord.unit}`;
+  document.getElementById('answer-kanji').textContent = currentWord.kotae;
 
-  // 文脈（memo列を文脈として使用）
-  const ctxEl = document.getElementById('q-ctx');
-  if (currentWord.memo) {
-    const blanked = currentWord.memo.replace(currentWord.kotae,
-      `<span class="blank">${'\u3000'.repeat(currentWord.kotae.length)}</span>`);
-    ctxEl.innerHTML = blanked;
-    ctxEl.classList.remove('hidden');
-  } else {
-    ctxEl.classList.add('hidden');
-  }
+  // 問題文: mondai 列の {{ひらがな}} を下線付きひらがなに変換
+  // 例: "{{じょうほう}}を整理する" → <span class="q-underline">じょうほう</span>を整理する
+  const qEl = document.getElementById('q-main');
+  const mondai = currentWord.mondai || '';
+  qEl.innerHTML = mondai.replace(/\{\{([^}]+)\}\}/g,
+    (_, yomi) => `<span class="q-underline">${yomi}</span>`
+  );
 
   // ヒント行（重要度・タグ・ヒント）
   const hintRow = document.getElementById('hint-row');
