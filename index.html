@@ -946,7 +946,7 @@ async function checkWeeklyReset(cfg) {
         last_weekly_grant: monday.toISOString()
       }).eq('id', 1),
       sbClient.from('ticket_history').insert({
-        type: 'weekly',
+        action: 'weekly',
         amount: 40,
         note: '週間チケット自動追加 +40枚'
       })
@@ -964,7 +964,7 @@ async function checkWeeklyReset(cfg) {
 function getThisMonday(date) {
   const d = new Date(date);
   const day = d.getDay(); // 0=Sun, 1=Mon...
-  const diff = -day; // 今週の日曜日に戻す
+  const diff = (day === 0 ? -6 : 1 - day);
   d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -1045,11 +1045,11 @@ function renderParentTickets() {
 function renderWeeklyInfo(lastGrant) {
   if (!lastGrant) return;
   const d = new Date(lastGrant);
-  const nextMonday = new Date(d);
-  nextMonday.setDate(nextMonday.getDate() + 7);
-  const opts = { month: 'numeric', day: 'numeric' };
+  const nextDate = new Date(d);
+  nextDate.setDate(nextDate.getDate() + 7);
+  const opts = { month: 'numeric', day: 'numeric', weekday: 'short' };
   document.getElementById('weekly-info-text').textContent =
-    `今週の週間チケット（40枚）は付与済みです。次回付与: ${nextMonday.toLocaleDateString('ja-JP', opts)}（月）`;
+    `今週の週間チケット（40枚）は付与済みです。次回付与: ${nextDate.toLocaleDateString('ja-JP', opts)}`;
 }
 
 // =============================================
@@ -1110,7 +1110,7 @@ async function adjustTickets(delta) {
   const [r1] = await Promise.all([
     sbClient.from('game_config').update({ tickets: newVal }).eq('id', 1),
     sbClient.from('ticket_history').insert({
-      type: actualDelta > 0 ? 'adjust_plus' : 'adjust_minus',
+      action: actualDelta > 0 ? 'adjust_plus' : 'adjust_minus',
       amount: actualDelta,
       note: actualDelta > 0 ? `手動追加 +${actualDelta}枚` : `手動減算 ${actualDelta}枚`
     })
@@ -1132,7 +1132,7 @@ async function approveRequest(reqId, amount) {
     sbClient.from('game_config').update({ tickets: newTickets }).eq('id', 1),
     sbClient.from('ticket_requests').update({ status: 'approved' }).eq('id', reqId),
     sbClient.from('ticket_history').insert({
-      type: 'use',
+      action: 'use',
       amount: -amount,
       note: `ゲーム使用 ${amount * 15}分（${amount}枚）`
     })
@@ -1216,13 +1216,13 @@ async function showHistory(from = 'kid') {
     const timeStr = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
     let icon, typeClass, amountClass, amountStr;
-    if (h.type === 'use') {
+    if (h.action === 'use') {
       icon = '🎮'; typeClass = 'type-use'; amountClass = 'negative';
       amountStr = `${h.amount}枚`;
-    } else if (h.type === 'adjust_plus') {
+    } else if (h.action === 'adjust_plus') {
       icon = '⭐'; typeClass = 'type-adjust-plus'; amountClass = 'positive';
       amountStr = `+${h.amount}枚`;
-    } else if (h.type === 'adjust_minus') {
+    } else if (h.action === 'adjust_minus') {
       icon = '📉'; typeClass = 'type-adjust-minus'; amountClass = 'negative';
       amountStr = `${h.amount}枚`;
     } else { // weekly
