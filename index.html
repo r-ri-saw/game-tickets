@@ -964,7 +964,7 @@ async function checkWeeklyReset(cfg) {
 function getThisMonday(date) {
   const d = new Date(date);
   const day = d.getDay(); // 0=Sun, 1=Mon...
-  const diff = (day === 0 ? -6 : 1 - day);
+  const diff = -day; // 今週の日曜日に戻す
   d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;
